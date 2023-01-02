@@ -43,7 +43,7 @@ public readonly struct WindowCreateOptions
     /// <remarks>
     /// If this is not set, the window will have no minimum dimensions (aside from reserved).
     /// </remarks>
-    public Size? MinimumSize { get; init; } = null;
+    public SizeF? MinimumSize { get; init; } = null;
 
     /// <summary>
     /// Sets a the maximum size for the window.
@@ -51,7 +51,7 @@ public readonly struct WindowCreateOptions
     /// <remarks>
     /// If this is not set, the window will have no maximum or will be set to the primary monitor’s dimensions by the platform.
     /// </remarks>
-    public Size? MaximumSize { get; init; } = null;
+    public SizeF? MaximumSize { get; init; } = null;
 
     /// <summary>
     /// Sets whether the window is resizable or not. Default is <c>true</c>.

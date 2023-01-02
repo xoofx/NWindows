@@ -65,6 +65,10 @@ public abstract class Window : DispatcherObject
 
     public abstract void Activate();
 
+    public abstract SizeF MinimumSize { get; set; }
+
+    public abstract SizeF MaximumSize { get; set; }
+
     public abstract PointF ScreenToClient(Point position);
 
     public abstract Point ClientToScreen(PointF position);

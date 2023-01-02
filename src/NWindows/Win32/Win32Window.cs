@@ -35,14 +35,18 @@ internal unsafe class Win32Window : Window
     private WindowState _state;
     private bool _isCompositionEnabled;
     private bool _isThemeActive;
+    private bool _isResizable;
     private int _mouseCapture; // Number of mouse captures in flight (i.e number of buttons down)
     private float _opacity;
     private bool _topLevel;
     private bool _topMost;
+    private SizeF _minimumSize;
+    private SizeF _maximumSize;
 
     public Win32Window(in WindowCreateOptions options) : base(options)
     {
         _hasDecorations = options.Decorations;
+        _isResizable = options.Resizable;
         _mouseLastX = -1;
         _mouseLastY = -1;
         _opacity = 1.0f;
@@ -152,6 +156,62 @@ internal unsafe class Win32Window : Window
         }
     }
 
+    public HWND HWnd => (HWND)Handle;
+
+    public override bool TopLevel
+    {
+        get
+        {
+            VerifyAccess();
+            return _topLevel;
+        }
+    }
+
+    public override bool TopMost
+    {
+        get
+        {
+            VerifyAccess();
+            return _topMost;
+        }
+        set
+        {
+            VerifyAccess();
+
+            SetWindowPos(HWnd, value ? HWND.HWND_TOPMOST : HWND.HWND_NOTOPMOST, 0, 0, 0, 0, SWP.SWP_NOMOVE | SWP.SWP_NOSIZE);
+            _topMost = value;
+        }
+    }
+
+
+    public override SizeF MinimumSize
+    {
+        get
+        {
+            VerifyAccess();
+            return _minimumSize;
+        }
+        set
+        {
+            VerifyAccess();
+            _minimumSize = value;
+        }
+    }
+
+    public override SizeF MaximumSize
+    {
+        get
+        {
+            VerifyAccess();
+            return _maximumSize;
+        }
+        set
+        {
+            VerifyAccess();
+            _maximumSize = value;
+        }
+    }
+
     private void ChangeOpacity(float value)
     {
         value = Math.Clamp(value, 0.0f, 1.0f);
@@ -184,8 +244,21 @@ internal unsafe class Win32Window : Window
         _opacity = value;
     }
 
-    public HWND HWnd => (HWND)Handle;
+    public override void Focus()
+    {
+        VerifyAccess();
+        SetFocus(HWnd);
+    }
 
+    public override void Activate()
+    {
+        VerifyAccess();
+        if (_visible)
+        {
+            SetForegroundWindow(HWnd);
+        }
+    }
+    
     public override Point ClientToScreen(PointF position)
     {
         VerifyAccess();
@@ -200,46 +273,6 @@ internal unsafe class Win32Window : Window
         else
         {
             return default;
-        }
-    }
-
-    public override bool TopLevel
-    {
-        get
-        {
-            VerifyAccess();
-            return _topLevel;
-        }
-    }
-
-    public override bool TopMost
-    {
-        get
-        {
-            VerifyAccess();
-            return _topMost;
-        }
-        set
-        {
-            VerifyAccess();
-
-            SetWindowPos(HWnd, value ? HWND.HWND_TOPMOST : HWND.HWND_NOTOPMOST, 0, 0, 0, 0, SWP.SWP_NOMOVE | SWP.SWP_NOSIZE);
-            _topMost = value;
-        }
-    }
-
-    public override void Focus()
-    {
-        VerifyAccess();
-        SetFocus(HWnd);
-    }
-
-    public override void Activate()
-    {
-        VerifyAccess();
-        if (_visible)
-        {
-            SetForegroundWindow(HWnd);
         }
     }
 
@@ -269,6 +302,9 @@ internal unsafe class Win32Window : Window
 
     private void CreateWindowHandle(in WindowCreateOptions options)
     {
+        _minimumSize = options.MinimumSize ?? SizeF.Empty;
+        _maximumSize = options.MaximumSize ?? SizeF.Empty;
+
         var positionX = CW_USEDEFAULT;
         var positionY = CW_USEDEFAULT;
         if (options.Position is { } pos)
@@ -279,6 +315,7 @@ internal unsafe class Win32Window : Window
 
         var width = CW_USEDEFAULT;
         var height = CW_USEDEFAULT;
+
         if (options.Size is { } size)
         {
             width = size.Width;
@@ -304,6 +341,7 @@ internal unsafe class Win32Window : Window
         var (style, styleEx) = GetStyleAndStyleExFromOptions(options);
         fixed (char* lpWindowName = options.Title)
         {
+            Win32Dispatcher.CreatedWindowHandle = GCHandle.Alloc(this);
             Handle = CreateWindowExW(
                 styleEx,
                 (ushort*)Dispatcher.ClassAtom,
@@ -316,8 +354,9 @@ internal unsafe class Win32Window : Window
                 hWndParent: HWND_DESKTOP,
                 hMenu: HMENU.NULL,
                 hInstance: Win32Shared.ModuleHandle,
-                lpParam: (void*)GCHandle.ToIntPtr(GCHandle.Alloc(this))
+                lpParam: (void*)null
             );
+            Win32Dispatcher.CreatedWindowHandle = default;
 
             UpdateThemeActive();
             UpdateCompositionEnabled();
@@ -344,14 +383,17 @@ internal unsafe class Win32Window : Window
             return HandleMouse(hWnd, message, wParam, lParam);
         }
 
+        nint result;
         if (!_hasDecorations)
         {
-            var result = HandleBorderLessWindowProc(hWnd, message, wParam, lParam);
+            result = HandleBorderLessWindowProc(hWnd, message, wParam, lParam);
             if (result >= 0)
             {
                 return result;
             }
         }
+
+        result = -1;
         
         switch (message)
         {
@@ -359,25 +401,35 @@ internal unsafe class Win32Window : Window
             case WM_CREATE:
                 // https://learn.microsoft.com/en-us/windows/win32/winmsg/wm-create
                 HandleCreate();
-                return 0;
+                result = 0;
+                break;
 
             case WM_SHOWWINDOW:
                 // https://learn.microsoft.com/en-us/windows/win32/winmsg/wm-showwindow
                 _visible = (BOOL)wParam;
                 OnFrameEvent(_visible ? FrameEventKind.Shown : FrameEventKind.Hidden);
-                return 0;
+                result = 0;
+                break;
 
             case WM_DESTROY:
                 OnFrameEvent(FrameEventKind.Destroyed);
-                return 0;
+                result = 0;
+                break;
 
             case WM_SETFOCUS:
                 OnFrameEvent(FrameEventKind.FocusGained);
-                return 0;
+                result = 0;
+                break;
 
             case WM_KILLFOCUS:
                 OnFrameEvent(FrameEventKind.FocusLost);
-                return 0;
+                result = 0;
+                break;
+
+            case WM_GETMINMAXINFO:
+                HandleGetMinMaxInfo((MINMAXINFO*)lParam);
+                result = 0;
+                break;
 
             case WM_WINDOWPOSCHANGED:
                 HandlePositionChanged((WINDOWPOS*)lParam);
@@ -387,29 +439,35 @@ internal unsafe class Win32Window : Window
             case WM_ERASEBKGND:
                 // Do nothing on erase background
                 // TODO: Check if we need to handle this
-                return 0;
+                result = 0;
+                break;
 
             case WM_MOVE:
-                return 0;
+                result = 0;
+                break;
 
             case WM_SIZE:
                 HandleSizeChanged((int)wParam);
-                return 0;
+                result = 0;
+                break;
 
             case WM_PAINT:
                 HandlePaint();
-                return 0;
+                result = 0;
+                break;
 
             case WM_DWMCOMPOSITIONCHANGED:
                 UpdateCompositionEnabled();
-                return 0;
+                result = 0;
+                break;
 
             case WM_THEMECHANGED:
                 UpdateThemeActive();
+                result = 0;
                 break;
         }
 
-        return -1;
+        return result;
     }
 
 
@@ -485,8 +543,83 @@ internal unsafe class Win32Window : Window
         return -1;
     }
 
+    private SizeF BoundSize(SizeF size)
+    {
+        if (!_isResizable) return size;
 
+        if (!_minimumSize.IsEmpty)
+        {
+            size.Width = Math.Max(size.Width, _minimumSize.Width);
+            size.Height = Math.Max(size.Height, _minimumSize.Height);
+        }
 
+        if (!_maximumSize.IsEmpty)
+        {
+            size.Width = Math.Min(size.Width, _maximumSize.Width);
+            size.Height = Math.Min(size.Height, _maximumSize.Height);
+        }
+
+        return size;
+    }
+
+    private void HandleGetMinMaxInfo(MINMAXINFO* info)
+    {
+        if (_isResizable)
+        {
+            if (!_minimumSize.IsEmpty)
+            {
+                *((Size*)&info->ptMinTrackSize) = WindowHelper.LogicalToPixel(_minimumSize, CurrentDpi);
+
+                // When the MinTrackSize is set to a value larger than the screen
+                // size but the MaxTrackSize is not set to a value equal to or greater than the
+                // MinTrackSize and the user attempts to "grab" a resizing handle, Windows makes
+                // the window move a distance equal to either the width when attempting to resize
+                // horizontally or the height of the window when attempting to resize vertically.
+                // So, the workaround to prevent this problem is to set the MaxTrackSize to something
+                // whenever the MinTrackSize is set to a value larger than the respective dimension
+                // of the virtual screen.
+                var screen = GetScreen();
+                if (_maximumSize.IsEmpty && screen != null)
+                {
+                    // Only set the max track size dimensions if the min track size dimensions
+                    // are larger than the VirtualScreen dimensions.
+                    Size virtualScreen = WindowHelper.LogicalToPixel(screen.Size, screen.Dpi);
+                    if (_minimumSize.Height > virtualScreen.Height)
+                    {
+                        info->ptMaxTrackSize.y = int.MaxValue;
+                    }
+
+                    if (_minimumSize.Width > virtualScreen.Width)
+                    {
+                        info->ptMaxTrackSize.x = int.MaxValue;
+                    }
+                }
+            }
+
+            if (!_maximumSize.IsEmpty)
+            {
+                var size = WindowHelper.LogicalToPixel(_maximumSize, CurrentDpi);
+                // TODO: Max on SystemInformation.MinWindowTrackSize
+                *((Size*)&info->ptMaxTrackSize) = size;
+            }
+
+            // TODO: set MaxSize/MaxPosition
+        }
+        else
+        {
+            // Force the size
+            var sizeInPixel = WindowHelper.LogicalToPixel(_size, CurrentDpi);
+
+            info->ptMaxSize.x = sizeInPixel.Width;
+            info->ptMaxSize.y = sizeInPixel.Height;
+            info->ptMaxPosition.x = _position.X;
+            info->ptMaxPosition.y = _position.Y;
+            info->ptMinTrackSize.x = sizeInPixel.Width;
+            info->ptMinTrackSize.y = sizeInPixel.Height;
+            info->ptMaxTrackSize.x = sizeInPixel.Width;
+            info->ptMaxTrackSize.y = sizeInPixel.Height;
+        }
+    }
 
     private void UpdateThemeActive()
     {

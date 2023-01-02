@@ -30,7 +30,9 @@ internal unsafe class Win32Dispatcher : Dispatcher
 
     private readonly uint _uxdDisplayChangeMessage;
     private readonly uint _hotplugDetected;
-    
+
+    [ThreadStatic] internal static GCHandle CreatedWindowHandle;
+
     public Win32Dispatcher(Thread thread) : base(thread)
     {
         _windows = new List<Win32Window>();
@@ -167,40 +169,40 @@ internal unsafe class Win32Dispatcher : Dispatcher
             }
 
             var handle = GetWindowLongPtrW(hWnd, GWLP_USERDATA);
-            var winWindow = (handle != 0) ? (Win32Window?)GCHandle.FromIntPtr(handle).Target : null;
-
-            if (winWindow == null)
+            Win32Window winWindow;
+            if (handle == 0)
             {
-                if (message == WM_NCCREATE)
-                {
-                    var pCreateStruct = (CREATESTRUCTW*)lParam;
-                    handle = (IntPtr)pCreateStruct->lpCreateParams;
-                    winWindow = (Win32Window)GCHandle.FromIntPtr(handle).Target!;
-                    _ = SetWindowLongPtrW(hWnd, GWLP_USERDATA, handle);
-                    winWindow.Dispatcher.RegisterWindow(winWindow);
-                    result = winWindow.WindowProc(hWnd, message, wParam, lParam);
-                }
+                winWindow = (Win32Window)CreatedWindowHandle.Target!;
+                handle = GCHandle.ToIntPtr(CreatedWindowHandle);
+                _ = SetWindowLongPtrW(hWnd, GWLP_USERDATA, handle);
             }
             else
             {
-                switch (message)
+                winWindow = (Win32Window)GCHandle.FromIntPtr(handle).Target!;
+            }
+
+            switch (message)
+            {
+                case WM_CREATE:
+                    winWindow.Dispatcher.RegisterWindow(winWindow);
+                    result = winWindow.WindowProc(hWnd, message, wParam, lParam);
+                    break;
+
+                case WM_DESTROY:
                 {
-                    case WM_DESTROY:
-                    {
-                        result = winWindow.WindowProc(hWnd, message, wParam, lParam);
-                        winWindow.Dispatcher.UnRegisterWindow(winWindow);
+                    result = winWindow.WindowProc(hWnd, message, wParam, lParam);
+                    winWindow.Dispatcher.UnRegisterWindow(winWindow);
 
-                        // TODO: Handle WM_QUIT
-                        PostQuitMessage(0);
-                        result = 0;
-                    }
-                        break;
+                    // TODO: Handle WM_QUIT
+                    PostQuitMessage(0);
+                    result = 0;
+                }
+                    break;
 
-                    default:
-                    {
-                        result = winWindow.WindowProc(hWnd, message, wParam, lParam);
-                        break;
-                    }
+                default:
+                {
+                    result = winWindow.WindowProc(hWnd, message, wParam, lParam);
+                    break;
                 }
             }
         }

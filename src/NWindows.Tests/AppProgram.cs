@@ -14,6 +14,8 @@ public class AppProgram
 
         var window = Window.Create(new WindowCreateOptions(WindowEventDelegate)
         {
+            MinimumSize = new SizeF(100, 100),
+            MaximumSize = new SizeF(500, 500),
             Decorations = false
         });
 
