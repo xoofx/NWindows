@@ -15,11 +15,9 @@ namespace NWindows;
 // Missing properties:
 //
 // - BackColor?
-// - FormBorderStyle
+// - FormBorderStyle => Changed to Resizeable?
 // - DesktopBounds (Gets or sets the size and location of the form on the Windows desktop.)
 // - DesktopLocation (Gets or sets the location of the form on the Windows desktop )
-// - MaximumSize
-// - MinimumSize
 // - MaximizeBox
 // - MinimizeBox
 // - Modal
@@ -40,24 +38,32 @@ public abstract class Window : DispatcherObject
 {
     internal Window(in WindowCreateOptions options)
     {
-        WindowEvent += options.WindowEventDelegate;
+        EventHandler = options.WindowEventHandler;
     }
 
-    public event WindowEventDelegate WindowEvent;
+    public WindowEventDelegate EventHandler { get; }
 
     public IntPtr Handle { get; protected set; }
 
-    public abstract SizeF Size { get; set; }
+    public WindowKind Kind { get; protected set; }
 
+    public abstract bool Enable { get; set; }
+
+    public abstract SizeF Size { get; set; }
+    
     public abstract Point Position { get; set; }
 
     public abstract bool Visible { get; set; }
+
+    public abstract bool Resizeable { get; set; }
+
+    public abstract Window? Parent { get; }
     
     public abstract WindowState State { get; set; }
 
     public abstract float Opacity { get; set; }
 
-    public abstract bool TopLevel { get; }
+    public bool TopLevel => Kind == WindowKind.TopLevel;
 
     public abstract bool TopMost { get; set; }
     
@@ -68,6 +74,8 @@ public abstract class Window : DispatcherObject
     public abstract SizeF MinimumSize { get; set; }
 
     public abstract SizeF MaximumSize { get; set; }
+
+    public abstract bool Modal { get; set; }
 
     public abstract PointF ScreenToClient(Point position);
 
@@ -89,22 +97,20 @@ public abstract class Window : DispatcherObject
 
     protected internal void OnWindowEvent(ref WindowEvent evt)
     {
-        WindowEvent.Invoke(this, ref evt);
+        EventHandler.Invoke(this, ref evt);
     }
 
     protected void OnFrameEvent(FrameEventKind frameEventKind)
     {
-        var localEvent = new WindowEvent(WindowEventKind.Frame);
-        ref var frameEvent = ref localEvent.Cast<FrameEvent>();
-        frameEvent.SubKind = frameEventKind;
-        OnWindowEvent(ref localEvent);
+        var frameEvent = new WindowEvent(WindowEventKind.Frame);
+        frameEvent.Frame.SubKind = frameEventKind;
+        OnWindowEvent(ref frameEvent);
     }
     protected bool OnPaintEvent(in RectangleF bounds)
     {
-        var localEvent = new WindowEvent(WindowEventKind.Paint);
-        ref var painEvent = ref localEvent.Cast<PaintEvent>();
-        painEvent.Bounds = bounds;
-        OnWindowEvent(ref localEvent);
-        return painEvent.Handled;
+        var paintEvent = new WindowEvent(WindowEventKind.Paint);
+        paintEvent.Paint.Bounds = bounds;
+        OnWindowEvent(ref paintEvent);
+        return paintEvent.Paint.Handled;
     }
 }

@@ -30,6 +30,8 @@ public struct WindowEvent : IWindowEvent
     [FieldOffset(0)] internal FrameEvent Frame;
     [FieldOffset(0)] internal KeyEvent Key;
     [FieldOffset(0)] internal SystemEvent System;
+    [FieldOffset(0)] internal PaintEvent Paint;
+    [FieldOffset(0)] internal BarHitTestEvent BarHitTest;
 
     public override string ToString()
     {
@@ -42,6 +44,7 @@ public struct WindowEvent : IWindowEvent
             WindowEventKind.Application => $"{nameof(Kind)}: {nameof(WindowEventKind.Application)}",
             WindowEventKind.Frame => this.Cast<FrameEvent>().ToString(),
             WindowEventKind.Paint => this.Cast<PaintEvent>().ToString(),
+            WindowEventKind.BarHitTest => this.Cast<BarHitTestEvent>().ToString(),
             WindowEventKind.Keyboard => $"{nameof(Kind)}: {nameof(WindowEventKind.Keyboard)}",
             WindowEventKind.Mouse => this.Cast<MouseEvent>().ToString(),
             _ => "Kind: unknown"

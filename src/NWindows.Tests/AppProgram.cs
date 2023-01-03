@@ -12,14 +12,23 @@ public class AppProgram
     {
         DisplayScreens();
 
-        var window = Window.Create(new WindowCreateOptions(WindowEventDelegate)
+
+        var mainWindow= Window.Create(new WindowCreateOptions(WindowEventDelegate)
         {
+            //Decorations = false
+        });
+        
+        var popupWindow = Window.Create(new WindowCreateOptions(WindowEventDelegate)
+        {
+            Kind = WindowKind.Popup,
             MinimumSize = new SizeF(100, 100),
             MaximumSize = new SizeF(500, 500),
-            Decorations = false
+            ParentWindow = mainWindow,
+            Title = "Popup",
+            //Decorations = false
         });
 
-        window.Dispatcher.Run();
+        Dispatcher.Current.Run();
     }
 
     private static int EventNumber;
@@ -55,6 +64,25 @@ public class AppProgram
             if ((mouseEvt.Button & MouseButtonFlags.RightButton) != 0 && mouseEvt.SubKind == MouseEventKind.ButtonDown)
             {
                 window.TopMost = !window.TopMost;
+            }
+
+            if ((mouseEvt.Button & MouseButtonFlags.MiddleButton) != 0 && mouseEvt.SubKind == MouseEventKind.ButtonDown)
+            {
+                window.Resizeable = !window.Resizeable;
+            }
+            
+            if ((mouseEvt.Button & MouseButtonFlags.Button1) != 0 && mouseEvt.SubKind == MouseEventKind.ButtonDown)
+            {
+                window.Modal = !window.Modal;
+            }
+        }
+        else if (evt.Kind == WindowEventKind.BarHitTest)
+        {
+            ref var barHitTestEvent = ref evt.Cast<BarHitTestEvent>();
+            if (barHitTestEvent.MousePosition.Y < 20)
+            {
+                barHitTestEvent.Result = BarHitTest.Caption;
+                barHitTestEvent.Handled = true;
             }
         }
     }

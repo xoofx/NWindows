@@ -193,8 +193,11 @@ internal unsafe class Win32Dispatcher : Dispatcher
                     result = winWindow.WindowProc(hWnd, message, wParam, lParam);
                     winWindow.Dispatcher.UnRegisterWindow(winWindow);
 
-                    // TODO: Handle WM_QUIT
-                    PostQuitMessage(0);
+                    // TODO: Allow to customize this behavior
+                    if (winWindow.Dispatcher._windows.Count == 0)
+                    {
+                        PostQuitMessage(0);
+                    }
                     result = 0;
                 }
                     break;

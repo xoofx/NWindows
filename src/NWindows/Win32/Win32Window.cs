@@ -16,12 +16,7 @@ using static TerraFX.Interop.Windows.TME;
 
 namespace NWindows.Win32;
 
-// Check https://github.com/microsoft/terminal/blob/547349af77df16d0eed1c73ba3041c84f7b063da/src/cascadia/WindowsTerminal/NonClientIslandWindow.cpp
-
-// https://learn.microsoft.com/en-us/windows/win32/winmsg/window-features
-
-// Borderless window
-// https://github.com/rossy/borderless-window/blob/master/borderless-window.c
+// Check about hittest https://github.com/microsoft/terminal/blob/547349af77df16d0eed1c73ba3041c84f7b063da/src/cascadia/WindowsTerminal/NonClientIslandWindow.cpp
 
 internal unsafe class Win32Window : Window
 {
@@ -35,27 +30,50 @@ internal unsafe class Win32Window : Window
     private WindowState _state;
     private bool _isCompositionEnabled;
     private bool _isThemeActive;
-    private bool _isResizable;
+    private bool _resizeable;
     private int _mouseCapture; // Number of mouse captures in flight (i.e number of buttons down)
     private float _opacity;
-    private bool _topLevel;
     private bool _topMost;
     private SizeF _minimumSize;
     private SizeF _maximumSize;
+    private bool _modal;
+    private readonly Win32Window? _parentWindow;
+    private bool _enable;
 
     public Win32Window(in WindowCreateOptions options) : base(options)
     {
         _hasDecorations = options.Decorations;
-        _isResizable = options.Resizable;
+        _resizeable = options.Resizable;
         _mouseLastX = -1;
         _mouseLastY = -1;
         _opacity = 1.0f;
-        _topLevel = true; // TODO: We might have options with non-toplevel window (Popup)
+        _enable = true;
+        _parentWindow = (Win32Window?)options.ParentWindow;
+        Kind = options.Kind;
         CreateWindowHandle(options);
     }
 
     public new Win32Dispatcher  Dispatcher => (Win32Dispatcher)base.Dispatcher;
 
+    public HWND HWnd => (HWND)Handle;
+
+    public override bool Enable
+    {
+        get
+        {
+            VerifyAccess();
+            return _enable;
+        }
+        set
+        {
+            VerifyAccess();
+            if (value != _enable)
+            {
+                UpdateEnable(value);
+            }
+        }
+    }
+    
     public override SizeF Size
     {
         get
@@ -68,8 +86,7 @@ internal unsafe class Win32Window : Window
             VerifyAccess();
             if (value != _size)
             {
-                var screenSize = WindowHelper.LogicalToPixel(value, CurrentDpi);
-                SetWindowPos(HWnd, HWND.NULL, 0, 0, screenSize.Width, screenSize.Height, SWP.SWP_NOREPOSITION | SWP.SWP_NOACTIVATE | SWP.SWP_NOZORDER);
+                UpdateSize(value);
             }
         }
     }
@@ -86,7 +103,7 @@ internal unsafe class Win32Window : Window
             VerifyAccess();
             if (value != _position)
             {
-                SetWindowPos(HWnd, HWND.NULL, value.X, value.Y, 0, 0, SWP.SWP_NOSIZE | SWP.SWP_NOACTIVATE | SWP.SWP_NOZORDER);
+                UpdatePosition(value);
             }
         }
     }
@@ -104,10 +121,30 @@ internal unsafe class Win32Window : Window
             VerifyAccess();
             if (_visible != value)
             {
-                ShowWindow(HWnd, value ? SW.SW_SHOW : SW.SW_HIDE);
+                UpdateVisible(value);
             }
         }
     }
+
+    public override bool Resizeable
+    {
+        get
+        {
+            VerifyAccess();
+            return _resizeable;
+        }
+        set
+        {
+            VerifyAccess();
+
+            if (_resizeable != value)
+            {
+                UpdateResizeable(value);
+            }
+        }
+    }
+
+    public override Window? Parent => _parentWindow;
 
     public override WindowState State
     {
@@ -121,20 +158,7 @@ internal unsafe class Win32Window : Window
             VerifyAccess();
             if (_state != value)
             {
-                switch (value)
-                {
-                    case WindowState.Normal:
-                        ShowWindow(HWnd, SW.SW_NORMAL);
-                        break;
-                    case WindowState.Minimized:
-                        ShowWindow(HWnd, SW.SW_MINIMIZE);
-                        break;
-                    case WindowState.Maximized:
-                        ShowWindow(HWnd, SW.SW_MAXIMIZE);
-                        break;
-                    default:
-                        throw new ArgumentOutOfRangeException(nameof(value), value, "Invalid WindowState");
-                }
+                UpdateWindowState(value);
             }
         }
     }
@@ -151,22 +175,11 @@ internal unsafe class Win32Window : Window
             VerifyAccess();
             if (_opacity != value)
             {
-                ChangeOpacity(value);
+                UpdateOpacity(value);
             }
         }
     }
-
-    public HWND HWnd => (HWND)Handle;
-
-    public override bool TopLevel
-    {
-        get
-        {
-            VerifyAccess();
-            return _topLevel;
-        }
-    }
-
+    
     public override bool TopMost
     {
         get
@@ -178,11 +191,12 @@ internal unsafe class Win32Window : Window
         {
             VerifyAccess();
 
-            SetWindowPos(HWnd, value ? HWND.HWND_TOPMOST : HWND.HWND_NOTOPMOST, 0, 0, 0, 0, SWP.SWP_NOMOVE | SWP.SWP_NOSIZE);
-            _topMost = value;
+            if (_topMost != value)
+            {
+                UpdateTopMost(value);
+            }
         }
     }
-
 
     public override SizeF MinimumSize
     {
@@ -194,7 +208,15 @@ internal unsafe class Win32Window : Window
         set
         {
             VerifyAccess();
-            _minimumSize = value;
+            if (!_minimumSize.Equals(value))
+            {
+                if (value.Width < 0 || value.Height < 0)
+                {
+                    throw new ArgumentOutOfRangeException(nameof(MinimumSize));
+                }
+
+                UpdateMinimumSize(value);
+            }
         }
     }
 
@@ -208,40 +230,35 @@ internal unsafe class Win32Window : Window
         set
         {
             VerifyAccess();
-            _maximumSize = value;
+            if (!_maximumSize.Equals(value))
+            {
+                if (value.Width < 0 || value.Height < 0)
+                {
+                    throw new ArgumentOutOfRangeException(nameof(MaximumSize));
+                }
+
+                UpdateMaximumSize(value);
+            }
         }
     }
 
-    private void ChangeOpacity(float value)
+    public override bool Modal
     {
-        value = Math.Clamp(value, 0.0f, 1.0f);
-
-        bool hasOpacity = value < 1.0f;
-
-        var exStyle = GetWindowExStyle(HWnd);
-        if (hasOpacity)
+        get
         {
-            exStyle |= ((uint)WS_EX_LAYERED);
-            SetWindowLongPtr(HWnd, GWL.GWL_EXSTYLE, (nint)exStyle);
-            var fixedValue = (byte)(value * 255);
-            if (fixedValue == 0)
+            VerifyAccess();
+            return _modal;
+        }
+        set
+        {
+            VerifyAccess();
+            if (Kind != WindowKind.Popup) throw new InvalidOperationException("Cannot make a non popup Window modal. Only Popup Window can be made modal");
+
+            if (_modal != value)
             {
-                fixedValue = 1;
+                UpdateModal(value);
             }
-            SetLayeredWindowAttributes(HWnd, new COLORREF(), fixedValue, LWA.LWA_ALPHA);
-            InvalidateRect(HWnd, null, false);
-            UpdateWindow(HWnd);
         }
-        else
-        {
-            SetLayeredWindowAttributes(HWnd, new COLORREF(), 255, LWA.LWA_ALPHA);
-            exStyle &= ~((uint)WS_EX_LAYERED);
-            SetWindowLongPtr(HWnd, GWL.GWL_EXSTYLE, (nint)exStyle);
-            InvalidateRect(HWnd, null, false);
-            UpdateWindow(HWnd);
-        }
-
-        _opacity = value;
     }
 
     public override void Focus()
@@ -300,10 +317,28 @@ internal unsafe class Win32Window : Window
         return screen;
     }
 
+    /// <summary>
+    ///  Gets the system's default minimum tracking dimensions of a window in pixels.
+    /// </summary>
+    private static SizeF MinWindowTrackSize
+    {
+        get
+        {
+            var dpi = Screen.PrimaryDpi;
+
+            return new SizeF(WindowHelper.PixelToLogical(GetSystemMetrics(SM.SM_CXMINTRACK), dpi.X),
+                WindowHelper.PixelToLogical(GetSystemMetrics(SM.SM_CYMINTRACK), dpi.Y));
+        }
+    }
+
     private void CreateWindowHandle(in WindowCreateOptions options)
     {
         _minimumSize = options.MinimumSize ?? SizeF.Empty;
         _maximumSize = options.MaximumSize ?? SizeF.Empty;
+
+        // Make sure that the size we have can't be smaller than the default
+        UpdateMinimumSize(_minimumSize, false, false);
+        UpdateMaximumSize(_maximumSize, false, false);
 
         var positionX = CW_USEDEFAULT;
         var positionY = CW_USEDEFAULT;
@@ -320,6 +355,19 @@ internal unsafe class Win32Window : Window
         {
             width = size.Width;
             height = size.Height;
+        }
+
+        // Popup windows don't have a default size with CreateWindowEx, so force one
+        if (options.Kind == WindowKind.Popup)
+        {
+            if (width == CW_USEDEFAULT)
+            {
+                width = 512;
+            }
+            if (height == CW_USEDEFAULT)
+            {
+                height = 256;
+            }
         }
 
         var screen = Screen.Primary;
@@ -351,7 +399,7 @@ internal unsafe class Win32Window : Window
                 Y: positionY,
                 nWidth: width,
                 nHeight: height,
-                hWndParent: HWND_DESKTOP,
+                hWndParent: options.ParentWindow is {} parentWindow ? (HWND)parentWindow.Handle : HWND_DESKTOP,
                 hMenu: HMENU.NULL,
                 hInstance: Win32Shared.ModuleHandle,
                 lpParam: (void*)null
@@ -412,7 +460,7 @@ internal unsafe class Win32Window : Window
                 break;
 
             case WM_DESTROY:
-                OnFrameEvent(FrameEventKind.Destroyed);
+                HandleDestroy();
                 result = 0;
                 break;
 
@@ -434,6 +482,17 @@ internal unsafe class Win32Window : Window
             case WM_WINDOWPOSCHANGED:
                 HandlePositionChanged((WINDOWPOS*)lParam);
                 // We don't handle it because we need to recover the maximized information in WM_SIZE
+                break;
+
+            case WM_CANCELMODE:
+                HandleCancelMode();
+                result = 0;
+                break;
+
+            case WM_ENABLE:
+                _enable = (BOOL)wParam;
+                OnFrameEvent(_enable ? FrameEventKind.Enabled : FrameEventKind.Disabled);
+                result = 0;
                 break;
                 
             case WM_ERASEBKGND:
@@ -470,9 +529,32 @@ internal unsafe class Win32Window : Window
         return result;
     }
 
+    private void HandleCancelMode()
+    {
+        // Cancel any pending capture
+        if (_mouseCapture > 0)
+        {
+            ReleaseCapture();
+            _mouseCapture = 0;
+        }
+    }
 
+    private void HandleDestroy()
+    {
+        // Make sure that we re-enable a parent window if a window was modal.
+        if (_modal)
+        {
+            _parentWindow!.Enable = true;
+            SetActiveWindow(_parentWindow!.HWnd);
+        }
+        OnFrameEvent(FrameEventKind.Destroyed);
+    }
+    
     private LRESULT HandleBorderLessWindowProc(HWND hWnd, uint message, WPARAM wParam, LPARAM lParam)
     {
+        // Tried to use some of the tips from:
+        // https://github.com/rossy/borderless-window/blob/master/borderless-window.c
+
         const int WM_NCUAHDRAWCAPTION = 0x00AE;
         const int WM_NCUAHDRAWFRAME = 0x00AF;
 
@@ -482,6 +564,7 @@ internal unsafe class Win32Window : Window
                 // https://learn.microsoft.com/en-us/windows/win32/dwm/customframe
                 HandleBorderLessNonClientCalculateClientSize(wParam, (NCCALCSIZE_PARAMS*)lParam);
                 return 0;
+
             case WM_NCHITTEST:
                 return HitTestNonClientAreaBorderLess(hWnd, wParam, lParam);
 
@@ -524,47 +607,14 @@ internal unsafe class Win32Window : Window
                     return result;
                 }
                 break;
-
-                //// TODO
-                //case WM_WINDOWPOSCHANGED:
-                //    RECT rect;
-                //    if (!GetClientRect(hWnd, &rect))
-                //    {
-                //        return -1;
-                //    }
-                //    //var left = PixelToLogicalX(rect.left);
-                //    //var top = PixelToLogicalY(rect.top);
-                //    //var right = PixelToLogicalX(rect.right);
-                //    //var bottom = PixelToLogicalX(rect.bottom);
-                //    break;
-
         }
 
         return -1;
     }
 
-    private SizeF BoundSize(SizeF size)
-    {
-        if (!_isResizable) return size;
-
-        if (!_minimumSize.IsEmpty)
-        {
-            size.Width = Math.Max(size.Width, _minimumSize.Width);
-            size.Height = Math.Max(size.Height, _minimumSize.Height);
-        }
-
-        if (!_maximumSize.IsEmpty)
-        {
-            size.Width = Math.Min(size.Width, _maximumSize.Width);
-            size.Height = Math.Min(size.Height, _maximumSize.Height);
-        }
-
-        return size;
-    }
-
     private void HandleGetMinMaxInfo(MINMAXINFO* info)
     {
-        if (_isResizable)
+        if (_resizeable)
         {
             if (!_minimumSize.IsEmpty)
             {
@@ -647,19 +697,6 @@ internal unsafe class Win32Window : Window
     private void HandleCreate()
     {
         OnFrameEvent(FrameEventKind.Created);
-
-        //if (!_hasDecorations)
-        //{
-        //    RECT rcClient;
-        //    GetWindowRect(Hwnd, &rcClient);
-
-        //    // Inform the application of the frame change.
-        //    SetWindowPos(Hwnd,
-        //        HWND.NULL,
-        //        rcClient.left, rcClient.top,
-        //        rcClient.right - rcClient.left, rcClient.bottom - rcClient.top,
-        //        SWP.SWP_FRAMECHANGED | SWP.SWP_NOACTIVATE);
-        //}
     }
 
     private unsafe void HandleBorderLessNonClientCalculateClientSize(WPARAM wParam, NCCALCSIZE_PARAMS* pnCsp)
@@ -750,13 +787,52 @@ internal unsafe class Win32Window : Window
         int diagonalWidth = frameSize * 2 + GetSystemMetrics(SM.SM_CXBORDER);
 
         // Top
-        if (ptMouse.y >= rcWindow.top && ptMouse.y < rcWindow.top + frameSize)
+        if (ptMouse.y >= rcWindow.top)
         {
-            if (ptMouse.x < rcWindow.left + diagonalWidth)
+            bool isTopBorder = ptMouse.y < rcWindow.top + frameSize;
+
+            if (isTopBorder)
             {
-                return HTTOPLEFT;
+                if (ptMouse.x < rcWindow.left + diagonalWidth)
+                {
+                    return HTTOPLEFT;
+                }
+
+                if (ptMouse.x > rcWindow.right - diagonalWidth)
+                {
+                    return HTTOPRIGHT;
+                }
+
+                return HTTOP;
             }
-            return ptMouse.x > rcWindow.right - diagonalWidth ? HTTOPRIGHT : HTTOP;
+
+            // In a borderless Delegate the detection of the bar to the event handler
+            var barEvent = new WindowEvent(WindowEventKind.BarHitTest);
+
+            barEvent.BarHitTest.WindowSize = WindowHelper.PixelToLogical(new Size(rcWindow.right - rcWindow.left, rcWindow.bottom - rcWindow.top), CurrentDpi);
+            barEvent.BarHitTest.MousePosition = ScreenToClient(new Point(ptMouse.x, ptMouse.y));
+
+            OnWindowEvent(ref barEvent);
+            if (barEvent.BarHitTest.Handled)
+            {
+                switch (barEvent.BarHitTest.Result)
+                {
+                    case BarHitTest.None:
+                        break;
+                    case BarHitTest.Menu:
+                        return HTMENU;
+                    case BarHitTest.Help:
+                        return HTHELP;
+                    case BarHitTest.Caption:
+                        return HTCAPTION;
+                    case BarHitTest.MinimizeButton:
+                        return HTMINBUTTON;
+                    case BarHitTest.MaximizeButton:
+                        return HTMAXBUTTON;
+                    case BarHitTest.CloseButton:
+                        return HTCLOSE;
+                }
+            }
         }
 
         // Bottom
@@ -1055,6 +1131,205 @@ internal unsafe class Win32Window : Window
         }
     }
 
+    private void UpdateEnable(bool enable)
+    {
+        EnableWindow(HWnd, enable);
+        // Notify is handled by WindowProc
+    }
+
+    private void UpdateSize(SizeF value)
+    {
+        var screenSize = WindowHelper.LogicalToPixel(value, CurrentDpi);
+        SetWindowPos(HWnd, HWND.NULL, 0, 0, screenSize.Width, screenSize.Height, SWP.SWP_NOREPOSITION | SWP.SWP_NOACTIVATE | SWP.SWP_NOZORDER);
+        // Notify is handled by HandlePositionChanged
+    }
+
+    private void UpdatePosition(Point value)
+    {
+        SetWindowPos(HWnd, HWND.NULL, value.X, value.Y, 0, 0, SWP.SWP_NOSIZE | SWP.SWP_NOACTIVATE | SWP.SWP_NOZORDER);
+        // Notify is handled by HandlePositionChanged
+    }
+
+    private void UpdateVisible(bool value)
+    {
+        ShowWindow(HWnd, value ? SW.SW_SHOW : SW.SW_HIDE);
+        // Notify is handled by WindowProc
+    }
+
+    private void UpdateResizeable(bool value)
+    {
+        var style = GetWindowStyle(HWnd);
+        if (value)
+        {
+            style |= WS_SIZEBOX;
+            // We can maximize only if there is no MaximumSize defined
+            if (_maximumSize.IsEmpty)
+            {
+                style |= WS_MAXIMIZEBOX;
+            }
+        }
+        else
+        {
+            // Disable size grip AND MaximizeBox 
+            style &= ~(uint)(WS_SIZEBOX | WS_MAXIMIZEBOX);
+        }
+        SetWindowLongPtr(HWnd, GWL.GWL_STYLE, (nint)style);
+        InvalidateRect(HWnd, null, false);
+        UpdateWindow(HWnd);
+
+        _resizeable = value;
+        OnFrameEvent(FrameEventKind.ResizeableChanged);
+    }
+    
+    private void UpdateWindowState(WindowState state)
+    {
+        switch (state)
+        {
+            case WindowState.Normal:
+                ShowWindow(HWnd, SW.SW_NORMAL);
+                break;
+            case WindowState.Minimized:
+                ShowWindow(HWnd, SW.SW_MINIMIZE);
+                break;
+            case WindowState.Maximized:
+                if (_maximumSize.IsEmpty)
+                {
+                    ShowWindow(HWnd, SW.SW_MAXIMIZE);
+                }
+                break;
+            default:
+                throw new ArgumentOutOfRangeException(nameof(state), state, "Invalid WindowState");
+        }
+
+        _state = state;
+
+        OnFrameEvent(FrameEventKind.StateChanged);
+    }
+
+    private void UpdateOpacity(float value)
+    {
+        value = Math.Clamp(value, 0.0f, 1.0f);
+
+        bool hasOpacity = value < 1.0f;
+
+        var exStyle = GetWindowExStyle(HWnd);
+        if (hasOpacity)
+        {
+            exStyle |= ((uint)WS_EX_LAYERED);
+            SetWindowLongPtr(HWnd, GWL.GWL_EXSTYLE, (nint)exStyle);
+            var fixedValue = (byte)(value * 255);
+            if (fixedValue == 0)
+            {
+                fixedValue = 1;
+            }
+            SetLayeredWindowAttributes(HWnd, new COLORREF(), fixedValue, LWA.LWA_ALPHA);
+            InvalidateRect(HWnd, null, false);
+            UpdateWindow(HWnd);
+        }
+        else
+        {
+            SetLayeredWindowAttributes(HWnd, new COLORREF(), 255, LWA.LWA_ALPHA);
+            exStyle &= ~((uint)WS_EX_LAYERED);
+            SetWindowLongPtr(HWnd, GWL.GWL_EXSTYLE, (nint)exStyle);
+            InvalidateRect(HWnd, null, false);
+            UpdateWindow(HWnd);
+        }
+
+        _opacity = value;
+        OnFrameEvent(FrameEventKind.OpacityChanged);
+    }
+
+    private void UpdateTopMost(bool value)
+    {
+        SetWindowPos(HWnd, value ? HWND.HWND_TOPMOST : HWND.HWND_NOTOPMOST, 0, 0, 0, 0, SWP.SWP_NOMOVE | SWP.SWP_NOSIZE);
+        _topMost = value;
+        OnFrameEvent(FrameEventKind.TopMostChanged);
+    }
+
+    private void UpdateMinimumSize(SizeF value, bool updateWindowSize = true, bool notify = true)
+    {
+        _minimumSize = value;
+
+        // Make sure the size is no smaller than the default minimum track size
+        var minWindowTrackSize = MinWindowTrackSize;
+        _minimumSize.Width = Math.Max(minWindowTrackSize.Width, _minimumSize.Width);
+        _minimumSize.Height = Math.Max(minWindowTrackSize.Height, _minimumSize.Height);
+
+        // Bump maximum size if necessary
+        if (!_maximumSize.IsEmpty && !value.IsEmpty)
+        {
+            if (_maximumSize.Width < value.Width)
+            {
+                _maximumSize.Width = value.Width;
+            }
+
+            if (_maximumSize.Height < value.Height)
+            {
+                _maximumSize.Height = value.Height;
+            }
+        }
+
+        if (updateWindowSize)
+        {
+            // Keep form size within new limits
+            SizeF size = Size;
+            if (size.Width < value.Width || size.Height < value.Height)
+            {
+                Size = new SizeF(Math.Max(size.Width, value.Width), Math.Max(size.Height, value.Height));
+            }
+        }
+
+        if (notify)
+        {
+            OnFrameEvent(FrameEventKind.MinimumSizeChanged);
+        }
+    }
+
+    private void UpdateMaximumSize(SizeF value, bool updateWindowSize = true, bool notify = true)
+    {
+        _maximumSize = value;
+
+        // Bump minimum size if necessary
+        if (!_minimumSize.IsEmpty && !value.IsEmpty)
+        {
+            if (_minimumSize.Width > value.Width)
+            {
+                _minimumSize.Width = value.Width;
+            }
+
+            if (_minimumSize.Height > value.Height)
+            {
+                _minimumSize.Height = value.Height;
+            }
+        }
+
+        if (updateWindowSize)
+        {
+            // Keep form size within new limits
+            SizeF currentSize = Size;
+            if (!value.IsEmpty && (currentSize.Width > value.Width || currentSize.Height > value.Height))
+            {
+                Size = new SizeF(Math.Min(currentSize.Width, value.Width), Math.Min(currentSize.Height, value.Height));
+            }
+        }
+
+        if (notify)
+        {
+            OnFrameEvent(FrameEventKind.MaximumSizeChanged);
+        }
+    }
+
+    private void UpdateModal(bool modal)
+    {
+        var parentWindow = _parentWindow!;
+
+        // When making a window modal, disable the parent window
+        parentWindow.Enable = !modal;
+
+        _modal = modal;
+        OnFrameEvent(FrameEventKind.ModalChanged);
+    }
+
     private static (uint, uint) GetStyleAndStyleExFromOptions(in WindowCreateOptions options)
     {
         uint style = WS_CLIPSIBLINGS | WS_CLIPCHILDREN;
@@ -1067,14 +1342,19 @@ internal unsafe class Win32Window : Window
             style |= WS_SIZEBOX;
         }
 
-        if (!options.Popup)
+        if (options.Kind == WindowKind.TopLevel)
         {
             styleEx |= WS_EX_APPWINDOW;
+        }
+        else if (options.Kind == WindowKind.Popup)
+        {
+            style |= WS_POPUP;
+            //styleEx |= WS_EX_WINDOWEDGE;
         }
 
         style |= WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU;
 
-        if (options.Maximizable)
+        if (options.Maximizable && !options.MaximumSize.HasValue)
         {
             style |= WS_MAXIMIZEBOX;
         }
@@ -1084,8 +1364,7 @@ internal unsafe class Win32Window : Window
             style |= WS_MINIMIZEBOX;
         }
 
-
-        if (options.Maximized)
+        if (options.Maximized && !options.MaximumSize.HasValue)
         {
             style |= WS_MAXIMIZE;
         }

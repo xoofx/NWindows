@@ -15,12 +15,17 @@ public readonly struct WindowCreateOptions
     /// <summary>
     /// Creates a new instance of this object with the specified window event delegate.
     /// </summary>
-    /// <param name="windowEventDelegate">The window event delegate.</param>
-    public WindowCreateOptions(WindowEventDelegate windowEventDelegate)
+    /// <param name="windowEventHandler">The window event delegate.</param>
+    public WindowCreateOptions(WindowEventDelegate windowEventHandler)
     {
-        WindowEventDelegate = windowEventDelegate;
+        WindowEventHandler = windowEventHandler;
     }
 
+    /// <summary>
+    /// Sets a kind of window. Default is <see cref="WindowKind.TopLevel"/>
+    /// </summary>
+    public WindowKind Kind { get; init; } = WindowKind.TopLevel;
+    
     /// <summary>
     /// Sets a desired default position for the window.
     /// </summary>
@@ -104,22 +109,17 @@ public readonly struct WindowCreateOptions
     public bool Minimizable { get; init; } = true;
 
     /// <summary>
-    /// Sets whether the window is a popup window. Default is <c>false</c>.
-    /// </summary>
-    public bool Popup { get; init; } = false;
-
-    /// <summary>
     /// Sets the icon of the window.
     /// </summary>
     public Icon? Icon { get; init; } = null;
 
     /// <summary>
-    /// Sets the native parent window handle.
+    /// Sets the native parent window handle. Required for a popup window.
     /// </summary>
-    public IntPtr NativeParentWindow { get; init; } = nint.Zero;
+    public Window? ParentWindow { get; init; } = null;
 
     /// <summary>
     /// Sets the window event delegate that will receive events.
     /// </summary>
-    public WindowEventDelegate WindowEventDelegate { get; init; }
+    public WindowEventDelegate WindowEventHandler { get; init; }
 }

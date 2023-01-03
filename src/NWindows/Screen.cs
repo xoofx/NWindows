@@ -13,11 +13,15 @@ public abstract partial class Screen : DispatcherObject
     {
     }
 
+    public static readonly Point DefaultDpi = new Point(96, 96);
+
     public static Point VirtualPosition => Dispatcher.Current.ScreenManager.GetVirtualScreenPosition();
 
     public static Size VirtualSize => Dispatcher.Current.ScreenManager.GetVirtualScreenSize();
 
     public static Screen? Primary => Dispatcher.Current.ScreenManager.GetPrimaryScreen();
+
+    public static Point PrimaryDpi => Primary?.Dpi ?? DefaultDpi;
 
     public static ReadOnlySpan<Screen> Items => Dispatcher.Current.ScreenManager.GetAllScreens();
 

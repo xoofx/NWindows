@@ -13,6 +13,7 @@ public enum WindowEventKind
     Application,
     Frame,
     Paint,
+    BarHitTest,
     Keyboard,
     Mouse,
 
