@@ -49,6 +49,8 @@ public abstract class Window : DispatcherObject
 
     public abstract bool Enable { get; set; }
 
+    public abstract bool IsDisposed { get; }
+
     public abstract string Title { get; set; }
 
     public abstract SizeF Size { get; set; }
@@ -88,6 +90,12 @@ public abstract class Window : DispatcherObject
     public Point CurrentDpi => GetScreen() is {} screen ? screen.Dpi : new Point(96, 96);
     
     public abstract Screen? GetScreen();
+
+    public void ShowDialog()
+    {
+        // Block until this window is closed
+        Dispatcher.Run(this);
+    }
 
     public static Window Create(WindowCreateOptions options)
     {

@@ -30,6 +30,8 @@ internal unsafe class Win32Dispatcher : Dispatcher
 
     private readonly uint _uxdDisplayChangeMessage;
     private readonly uint _hotplugDetected;
+    private int _runMessageLoop;
+    private bool _exitFromCurrentMessageLoop;
 
     [ThreadStatic] internal static GCHandle CreatedWindowHandle;
 
@@ -88,24 +90,41 @@ internal unsafe class Win32Dispatcher : Dispatcher
         PostQuitMessage(0);
     }
 
-    protected override void RunImpl()
+    protected override void RunMessageLoop(Window? window)
     {
         MSG msg;
 
-        while (true)
+        _runMessageLoop++;
+        if (window != null)
         {
-            if (PeekMessageW(&msg, HWND.NULL, wMsgFilterMin: WM_NULL, wMsgFilterMax: WM_NULL, wRemoveMsg: PM_REMOVE))
+            if (window.Kind == WindowKind.Popup)
             {
-                if (msg.message == WM_QUIT)
+                window.Modal = true;
+            }
+        }
+
+        try
+        {
+            while (!_exitFromCurrentMessageLoop)
+            {
+                if (PeekMessageW(&msg, HWND.NULL, wMsgFilterMin: WM_NULL, wMsgFilterMax: WM_NULL, wRemoveMsg: PM_REMOVE))
                 {
-                    break;
-                }
-                else
-                {
-                    TranslateMessage(&msg);
-                    _ = DispatchMessageW(&msg);
+                    if (msg.message == WM_QUIT)
+                    {
+                        break;
+                    }
+                    else
+                    {
+                        TranslateMessage(&msg);
+                        _ = DispatchMessageW(&msg);
+                    }
                 }
             }
+        }
+        finally
+        {
+            _exitFromCurrentMessageLoop = false;
+            _runMessageLoop--;
         }
     }
 
@@ -190,6 +209,7 @@ internal unsafe class Win32Dispatcher : Dispatcher
 
                 case WM_DESTROY:
                 {
+                    var popup = winWindow.Kind == WindowKind.Popup;
                     result = winWindow.WindowProc(hWnd, message, wParam, lParam);
                     winWindow.Dispatcher.UnRegisterWindow(winWindow);
 
@@ -198,11 +218,15 @@ internal unsafe class Win32Dispatcher : Dispatcher
                     {
                         PostQuitMessage(0);
                     }
+                    else
+                    {
+                        if (popup)
+                        {
+                            winWindow.Dispatcher._exitFromCurrentMessageLoop = true;
+                        }
+                    }
                     result = 0;
                 }
-                    break;
-                case WM_NCDESTROY:
-                    result = winWindow.WindowProc(hWnd, message, wParam, lParam);
                     break;
 
                 default:

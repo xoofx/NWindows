@@ -78,6 +78,8 @@ internal unsafe class Win32Window : Window
         }
     }
 
+    public override bool IsDisposed => _disposed;
+
     public override string Title
     {
         get

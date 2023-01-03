@@ -175,19 +175,22 @@ public abstract class Dispatcher
         _hasShutdownStarted = true;
     }
 
-    public void Run()
+    public void Run(Window? window = null)
     {
         VerifyAccess();
-        RunImpl();
+        RunMessageLoop(window);
 
-        _shutdownFinished?.Invoke(this, EventArgs.Empty);
-
-        _hasShutdownFinished = true;
+        if (window == null)
+        {
+            _shutdownFinished?.Invoke(this, EventArgs.Empty);
+            _hasShutdownFinished = true;
+        }
     }
+
 
     protected abstract void RequestShutdown();
 
-    protected abstract void RunImpl();
+    protected abstract void RunMessageLoop(Window? window);
 
     internal abstract IScreenManager ScreenManager { get; }
 

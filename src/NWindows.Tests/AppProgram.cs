@@ -3,6 +3,7 @@
 // See license.txt file in the project root for full license information.
 
 using System.Drawing;
+using TerraFX.Interop.Windows;
 
 namespace NWindows.Tests;
 
@@ -10,32 +11,46 @@ public class AppProgram
 {
     public static void Main(string[] args)
     {
+        var program = new AppProgram();
+        program.Run();
+    }
+
+    public AppProgram()
+    {
+    }
+
+
+    public void Run()
+    {
         DisplayScreens();
 
-
-        var mainWindow= Window.Create(new WindowCreateOptions(WindowEventDelegate)
+        _mainWindow = Window.Create(new WindowCreateOptions(WindowEventDelegate)
         {
             //Decorations = false
-        });
-        
-        var popupWindow = Window.Create(new WindowCreateOptions(WindowEventDelegate)
-        {
-            Kind = WindowKind.Popup,
-            MinimumSize = new SizeF(100, 100),
-            MaximumSize = new SizeF(500, 500),
-            Parent = mainWindow,
-            Title = "Popup",
-            Decorations = false
         });
 
         Dispatcher.Current.Run();
     }
 
-    private static int EventNumber;
+    private Window CreatePopupWindow()
+    {
+        return Window.Create(new WindowCreateOptions(WindowEventDelegate)
+        {
+            Kind = WindowKind.Popup,
+            MinimumSize = new SizeF(100, 100),
+            MaximumSize = new SizeF(500, 500),
+            Parent = _mainWindow!,
+            Title = "Popup",
+            Decorations = false
+        });
+    }
 
-    private static Point deltaMousePosition;
+    private int EventNumber;
 
-    private static void WindowEventDelegate(Window window, ref WindowEvent evt)
+    private Point deltaMousePosition;
+    private Window? _mainWindow;
+
+    private void WindowEventDelegate(Window window, ref WindowEvent evt)
     {
         EventNumber++;
         Console.WriteLine($"[{EventNumber}] {evt} Window Position: {window.Position} Window Size: {window.Size}");
@@ -75,7 +90,15 @@ public class AppProgram
             
             if ((mouseEvt.Button & MouseButtonFlags.Button1) != 0 && mouseEvt.SubKind == MouseEventKind.ButtonDown)
             {
-                window.Modal = !window.Modal;
+                if (window.TopLevel)
+                {
+                    var popupWindow = CreatePopupWindow();
+                    popupWindow.ShowDialog();
+                }
+                else
+                {
+                    window.Modal = !window.Modal;
+                }
             }
 
             if ((mouseEvt.Button & MouseButtonFlags.Button2) != 0 && mouseEvt.SubKind == MouseEventKind.ButtonDown)
