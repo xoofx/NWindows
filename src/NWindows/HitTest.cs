@@ -4,7 +4,7 @@
 
 namespace NWindows;
 
-public enum BarHitTest
+public enum HitTest
 {
     None,
     Menu,
@@ -12,6 +12,14 @@ public enum BarHitTest
     Caption,
     MinimizeButton,
     MaximizeButton,
-    CloseButton
-    // TODO: We might want to handle the size grip
+    CloseButton,
+    BorderLeft,
+    BorderRight,
+    BorderTop,
+    BorderBottom,
+    BorderTopLeft,
+    BorderTopRight,
+    BorderBottomLeft,
+    BorderBottomRight,
+    Client
 }

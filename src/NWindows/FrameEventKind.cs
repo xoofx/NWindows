@@ -30,4 +30,5 @@ public enum FrameEventKind
     Disabled,
     Close,
     TakeFocus,
+    TitleChanged
 }

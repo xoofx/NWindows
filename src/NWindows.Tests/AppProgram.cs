@@ -23,9 +23,9 @@ public class AppProgram
             Kind = WindowKind.Popup,
             MinimumSize = new SizeF(100, 100),
             MaximumSize = new SizeF(500, 500),
-            ParentWindow = mainWindow,
+            Parent = mainWindow,
             Title = "Popup",
-            //Decorations = false
+            Decorations = false
         });
 
         Dispatcher.Current.Run();
@@ -49,6 +49,8 @@ public class AppProgram
             var mousePositionOnScreen = window.ClientToScreen(mouseEvt.Position);
             if ((mouseEvt.Button & MouseButtonFlags.LeftButton) != 0)
             {
+                window.Title = $"{window.Kind} Pressed: {EventNumber}";
+
                 deltaMousePosition = new Point(window.Position.X - mousePositionOnScreen.X, window.Position.Y - mousePositionOnScreen.Y);
             }
             if ((mouseEvt.Pressed & MouseButtonFlags.LeftButton) != 0)
@@ -75,13 +77,18 @@ public class AppProgram
             {
                 window.Modal = !window.Modal;
             }
+
+            if ((mouseEvt.Button & MouseButtonFlags.Button2) != 0 && mouseEvt.SubKind == MouseEventKind.ButtonDown)
+            {
+                window.Close();
+            }
         }
-        else if (evt.Kind == WindowEventKind.BarHitTest)
+        else if (evt.Kind == WindowEventKind.HitTest)
         {
-            ref var barHitTestEvent = ref evt.Cast<BarHitTestEvent>();
+            ref var barHitTestEvent = ref evt.Cast<HitTestEvent>();
             if (barHitTestEvent.MousePosition.Y < 20)
             {
-                barHitTestEvent.Result = BarHitTest.Caption;
+                barHitTestEvent.Result = HitTest.Caption;
                 barHitTestEvent.Handled = true;
             }
         }

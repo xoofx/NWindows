@@ -49,6 +49,8 @@ public abstract class Window : DispatcherObject
 
     public abstract bool Enable { get; set; }
 
+    public abstract string Title { get; set; }
+
     public abstract SizeF Size { get; set; }
     
     public abstract Point Position { get; set; }
@@ -66,10 +68,12 @@ public abstract class Window : DispatcherObject
     public bool TopLevel => Kind == WindowKind.TopLevel;
 
     public abstract bool TopMost { get; set; }
-    
+
     public abstract void Focus();
 
     public abstract void Activate();
+
+    public abstract bool Close();
 
     public abstract SizeF MinimumSize { get; set; }
 

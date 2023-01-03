@@ -201,6 +201,9 @@ internal unsafe class Win32Dispatcher : Dispatcher
                     result = 0;
                 }
                     break;
+                case WM_NCDESTROY:
+                    result = winWindow.WindowProc(hWnd, message, wParam, lParam);
+                    break;
 
                 default:
                 {

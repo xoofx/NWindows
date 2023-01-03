@@ -13,9 +13,10 @@ public enum WindowEventKind
     Application,
     Frame,
     Paint,
-    BarHitTest,
+    HitTest,
     Keyboard,
     Mouse,
+    Close,
 
     // TODO: add touch, gesture, clipboard, drag and drop
 }

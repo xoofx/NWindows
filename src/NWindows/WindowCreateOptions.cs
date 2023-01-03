@@ -116,7 +116,7 @@ public readonly struct WindowCreateOptions
     /// <summary>
     /// Sets the native parent window handle. Required for a popup window.
     /// </summary>
-    public Window? ParentWindow { get; init; } = null;
+    public Window? Parent { get; init; } = null;
 
     /// <summary>
     /// Sets the window event delegate that will receive events.

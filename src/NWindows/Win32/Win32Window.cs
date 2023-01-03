@@ -4,7 +4,6 @@
 
 using System;
 using System.Drawing;
-using System.Numerics;
 using System.Runtime.InteropServices;
 using TerraFX.Interop.Windows;
 using static TerraFX.Interop.Windows.WS;
@@ -39,16 +38,21 @@ internal unsafe class Win32Window : Window
     private bool _modal;
     private readonly Win32Window? _parentWindow;
     private bool _enable;
+    private bool _closed;
+    private bool _disposed;
+    private GCHandle _thisGcHandle;
+    private string _title;
 
     public Win32Window(in WindowCreateOptions options) : base(options)
     {
         _hasDecorations = options.Decorations;
         _resizeable = options.Resizable;
+        _title = options.Title;
         _mouseLastX = -1;
         _mouseLastY = -1;
         _opacity = 1.0f;
         _enable = true;
-        _parentWindow = (Win32Window?)options.ParentWindow;
+        _parentWindow = (Win32Window?)options.Parent;
         Kind = options.Kind;
         CreateWindowHandle(options);
     }
@@ -66,14 +70,31 @@ internal unsafe class Win32Window : Window
         }
         set
         {
-            VerifyAccess();
+            VerifyAccessAndNotDestroyed();
             if (value != _enable)
             {
                 UpdateEnable(value);
             }
         }
     }
-    
+
+    public override string Title
+    {
+        get
+        {
+            VerifyAccess();
+            return _title;
+        }
+        set
+        {
+            VerifyAccessAndNotDestroyed();
+            if (!string.Equals(_title, value, StringComparison.Ordinal))
+            {
+                UpdateTitle(value);
+            }
+        }
+    }
+
     public override SizeF Size
     {
         get
@@ -83,7 +104,7 @@ internal unsafe class Win32Window : Window
         }
         set
         {
-            VerifyAccess();
+            VerifyAccessAndNotDestroyed();
             if (value != _size)
             {
                 UpdateSize(value);
@@ -100,7 +121,7 @@ internal unsafe class Win32Window : Window
         }
         set
         {
-            VerifyAccess();
+            VerifyAccessAndNotDestroyed();
             if (value != _position)
             {
                 UpdatePosition(value);
@@ -118,7 +139,7 @@ internal unsafe class Win32Window : Window
 
         set
         {
-            VerifyAccess();
+            VerifyAccessAndNotDestroyed();
             if (_visible != value)
             {
                 UpdateVisible(value);
@@ -135,7 +156,7 @@ internal unsafe class Win32Window : Window
         }
         set
         {
-            VerifyAccess();
+            VerifyAccessAndNotDestroyed();
 
             if (_resizeable != value)
             {
@@ -155,7 +176,7 @@ internal unsafe class Win32Window : Window
         }
         set
         {
-            VerifyAccess();
+            VerifyAccessAndNotDestroyed();
             if (_state != value)
             {
                 UpdateWindowState(value);
@@ -172,7 +193,7 @@ internal unsafe class Win32Window : Window
         }
         set
         {
-            VerifyAccess();
+            VerifyAccessAndNotDestroyed();
             if (_opacity != value)
             {
                 UpdateOpacity(value);
@@ -189,7 +210,7 @@ internal unsafe class Win32Window : Window
         }
         set
         {
-            VerifyAccess();
+            VerifyAccessAndNotDestroyed();
 
             if (_topMost != value)
             {
@@ -207,7 +228,7 @@ internal unsafe class Win32Window : Window
         }
         set
         {
-            VerifyAccess();
+            VerifyAccessAndNotDestroyed();
             if (!_minimumSize.Equals(value))
             {
                 if (value.Width < 0 || value.Height < 0)
@@ -229,7 +250,7 @@ internal unsafe class Win32Window : Window
         }
         set
         {
-            VerifyAccess();
+            VerifyAccessAndNotDestroyed();
             if (!_maximumSize.Equals(value))
             {
                 if (value.Width < 0 || value.Height < 0)
@@ -251,7 +272,7 @@ internal unsafe class Win32Window : Window
         }
         set
         {
-            VerifyAccess();
+            VerifyAccessAndNotDestroyed();
             if (Kind != WindowKind.Popup) throw new InvalidOperationException("Cannot make a non popup Window modal. Only Popup Window can be made modal");
 
             if (_modal != value)
@@ -263,22 +284,29 @@ internal unsafe class Win32Window : Window
 
     public override void Focus()
     {
-        VerifyAccess();
+        VerifyAccessAndNotDestroyed();
         SetFocus(HWnd);
     }
 
     public override void Activate()
     {
-        VerifyAccess();
+        VerifyAccessAndNotDestroyed();
         if (_visible)
         {
             SetForegroundWindow(HWnd);
         }
     }
+
+    public override bool Close()
+    {
+        VerifyAccessAndNotDestroyed();
+        SendMessage(HWnd, WM_CLOSE, (WPARAM)0, (LPARAM)0);
+        return _closed;
+    }
     
     public override Point ClientToScreen(PointF position)
     {
-        VerifyAccess();
+        VerifyAccessAndNotDestroyed();
 
         var screen = GetScreen();
         if (screen != null)
@@ -295,7 +323,7 @@ internal unsafe class Win32Window : Window
 
     public override PointF ScreenToClient(Point position)
     {
-        VerifyAccess();
+        VerifyAccessAndNotDestroyed();
 
         var screen = GetScreen();
         if (screen != null)
@@ -311,8 +339,8 @@ internal unsafe class Win32Window : Window
 
     public override Screen? GetScreen()
     {
-        VerifyAccess();
-        var handle = MonitorFromWindow((HWND)Handle, MONITOR.MONITOR_DEFAULTTONEAREST);
+        VerifyAccessAndNotDestroyed();
+        var handle = MonitorFromWindow(HWnd, MONITOR.MONITOR_DEFAULTTONEAREST);
         Dispatcher.ScreenManager.TryGetScreen(handle, out var screen);
         return screen;
     }
@@ -389,7 +417,8 @@ internal unsafe class Win32Window : Window
         var (style, styleEx) = GetStyleAndStyleExFromOptions(options);
         fixed (char* lpWindowName = options.Title)
         {
-            Win32Dispatcher.CreatedWindowHandle = GCHandle.Alloc(this);
+            _thisGcHandle = GCHandle.Alloc(this);
+            Win32Dispatcher.CreatedWindowHandle = _thisGcHandle;
             Handle = CreateWindowExW(
                 styleEx,
                 (ushort*)Dispatcher.ClassAtom,
@@ -399,7 +428,7 @@ internal unsafe class Win32Window : Window
                 Y: positionY,
                 nWidth: width,
                 nHeight: height,
-                hWndParent: options.ParentWindow is {} parentWindow ? (HWND)parentWindow.Handle : HWND_DESKTOP,
+                hWndParent: options.Parent is {} parentWindow ? (HWND)parentWindow.Handle : HWND_DESKTOP,
                 hMenu: HMENU.NULL,
                 hInstance: Win32Shared.ModuleHandle,
                 lpParam: (void*)null
@@ -445,6 +474,10 @@ internal unsafe class Win32Window : Window
         
         switch (message)
         {
+            case WM_NCDESTROY:
+                HandleDispose();
+                result = 0;
+                break;
 
             case WM_CREATE:
                 // https://learn.microsoft.com/en-us/windows/win32/winmsg/wm-create
@@ -456,6 +489,11 @@ internal unsafe class Win32Window : Window
                 // https://learn.microsoft.com/en-us/windows/win32/winmsg/wm-showwindow
                 _visible = (BOOL)wParam;
                 OnFrameEvent(_visible ? FrameEventKind.Shown : FrameEventKind.Hidden);
+                result = 0;
+                break;
+
+            case WM_CLOSE:
+                HandleClose();
                 result = 0;
                 break;
 
@@ -527,6 +565,25 @@ internal unsafe class Win32Window : Window
         }
 
         return result;
+    }
+
+    private void HandleDispose()
+    {
+        _disposed = true;
+        _thisGcHandle.Free();
+        _thisGcHandle = default;
+        Handle = default;
+    }
+    
+    private void HandleClose()
+    {
+        var closeEvent = new WindowEvent(WindowEventKind.Close);
+        OnWindowEvent(ref closeEvent);
+        if (!closeEvent.Close.Cancel)
+        {
+            _closed = true;
+            DestroyWindow(HWnd);
+        }
     }
 
     private void HandleCancelMode()
@@ -781,7 +838,50 @@ internal unsafe class Win32Window : Window
         int frameSize = GetSystemMetrics(SM.SM_CXFRAME) +
                          GetSystemMetrics(SM.SM_CXPADDEDBORDER);
 
-        // TODO: Handle CAPTION
+        // In a borderless Delegate the detection of the bar to the event handler
+        var hitTestEvent = new WindowEvent(WindowEventKind.HitTest);
+        hitTestEvent.HitTest.WindowSize = WindowHelper.PixelToLogical(new Size(rcWindow.right - rcWindow.left, rcWindow.bottom - rcWindow.top), CurrentDpi);
+        hitTestEvent.HitTest.MousePosition = ScreenToClient(new Point(ptMouse.x, ptMouse.y));
+
+        OnWindowEvent(ref hitTestEvent);
+        if (hitTestEvent.HitTest.Handled)
+        {
+            switch (hitTestEvent.HitTest.Result)
+            {
+                case HitTest.None:
+                    return HTNOWHERE;
+                case HitTest.Menu:
+                    return HTMENU;
+                case HitTest.Help:
+                    return HTHELP;
+                case HitTest.Caption:
+                    return HTCAPTION;
+                case HitTest.MinimizeButton:
+                    return HTMINBUTTON;
+                case HitTest.MaximizeButton:
+                    return HTMAXBUTTON;
+                case HitTest.CloseButton:
+                    return HTCLOSE;
+                case HitTest.BorderLeft:
+                    return HTLEFT;
+                case HitTest.BorderRight:
+                    return HTRIGHT;
+                case HitTest.BorderTop:
+                    return HTTOP;
+                case HitTest.BorderBottom:
+                    return HTBOTTOM;
+                case HitTest.BorderTopLeft:
+                    return HTTOPLEFT;
+                case HitTest.BorderTopRight:
+                    return HTTOPRIGHT;
+                case HitTest.BorderBottomLeft:
+                    return HTBOTTOMLEFT;
+                case HitTest.BorderBottomRight:
+                    return HTBOTTOMRIGHT;
+                case HitTest.Client:
+                    return HTCLIENT;
+            }
+        }
 
         // Diagonal are wider than the frame
         int diagonalWidth = frameSize * 2 + GetSystemMetrics(SM.SM_CXBORDER);
@@ -804,34 +904,6 @@ internal unsafe class Win32Window : Window
                 }
 
                 return HTTOP;
-            }
-
-            // In a borderless Delegate the detection of the bar to the event handler
-            var barEvent = new WindowEvent(WindowEventKind.BarHitTest);
-
-            barEvent.BarHitTest.WindowSize = WindowHelper.PixelToLogical(new Size(rcWindow.right - rcWindow.left, rcWindow.bottom - rcWindow.top), CurrentDpi);
-            barEvent.BarHitTest.MousePosition = ScreenToClient(new Point(ptMouse.x, ptMouse.y));
-
-            OnWindowEvent(ref barEvent);
-            if (barEvent.BarHitTest.Handled)
-            {
-                switch (barEvent.BarHitTest.Result)
-                {
-                    case BarHitTest.None:
-                        break;
-                    case BarHitTest.Menu:
-                        return HTMENU;
-                    case BarHitTest.Help:
-                        return HTHELP;
-                    case BarHitTest.Caption:
-                        return HTCAPTION;
-                    case BarHitTest.MinimizeButton:
-                        return HTMINBUTTON;
-                    case BarHitTest.MaximizeButton:
-                        return HTMAXBUTTON;
-                    case BarHitTest.CloseButton:
-                        return HTCLOSE;
-                }
             }
         }
 
@@ -1137,6 +1209,17 @@ internal unsafe class Win32Window : Window
         // Notify is handled by WindowProc
     }
 
+    private void UpdateTitle(string title)
+    {
+        fixed (char* pTitle = title)
+        {
+            SetWindowTextW(HWnd, (ushort*)pTitle);
+        }
+
+        _title = title;
+        OnFrameEvent(FrameEventKind.TitleChanged);
+    }
+
     private void UpdateSize(SizeF value)
     {
         var screenSize = WindowHelper.LogicalToPixel(value, CurrentDpi);
@@ -1379,5 +1462,14 @@ internal unsafe class Win32Window : Window
         }
 
         return (style, styleEx);
+    }
+
+    private void VerifyAccessAndNotDestroyed()
+    {
+        base.VerifyAccess();
+        if (_disposed)
+        {
+            throw new InvalidOperationException("This window has been closed and destroyed.");
+        }
     }
 }

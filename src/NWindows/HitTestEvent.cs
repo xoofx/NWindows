@@ -6,13 +6,13 @@ using System.Drawing;
 
 namespace NWindows;
 
-public struct BarHitTestEvent : IWindowEvent
+public struct HitTestEvent : IWindowEvent
 {
-    static WindowEventKind IWindowEvent.StaticKind => WindowEventKind.BarHitTest;
+    static WindowEventKind IWindowEvent.StaticKind => WindowEventKind.HitTest;
 
-    public BarHitTestEvent()
+    public HitTestEvent()
     {
-        Kind = WindowEventKind.BarHitTest;
+        Kind = WindowEventKind.HitTest;
     }
 
     public WindowEventKind Kind { get; }
@@ -21,7 +21,7 @@ public struct BarHitTestEvent : IWindowEvent
 
     public SizeF WindowSize;
 
-    public BarHitTest Result;
+    public HitTest Result;
 
     public bool Handled;
 
