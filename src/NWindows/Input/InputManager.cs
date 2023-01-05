@@ -2,6 +2,8 @@
 // Licensed under the BSD-Clause 2 license.
 // See license.txt file in the project root for full license information.
 
+using NWindows.Threading;
+
 namespace NWindows.Input;
 
 public abstract class InputManager : DispatcherObject
@@ -12,5 +14,5 @@ public abstract class InputManager : DispatcherObject
 
     public abstract KeyboardDevice PrimaryKeyboardDevice { get; }
 
-    public static InputManager Current => NWindows.Dispatcher.Current.InputManager;
+    public static InputManager Current => Dispatcher.Current.InputManager;
 }

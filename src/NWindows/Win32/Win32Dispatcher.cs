@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.InteropServices;
 using System.Threading;
+using NWindows.Threading;
 using TerraFX.Interop.Windows;
 using static TerraFX.Interop.Windows.CS;
 using static TerraFX.Interop.Windows.GWLP;

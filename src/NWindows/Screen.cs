@@ -4,6 +4,7 @@
 
 using System;
 using System.Drawing;
+using NWindows.Threading;
 
 namespace NWindows;
 

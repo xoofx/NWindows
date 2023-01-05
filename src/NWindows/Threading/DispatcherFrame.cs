@@ -1,6 +1,6 @@
 using System;
 
-namespace NWindows;
+namespace NWindows.Threading;
 
 public class DispatcherFrame : DispatcherObject
 {

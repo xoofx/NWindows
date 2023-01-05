@@ -5,13 +5,13 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using System.Threading;
-using System.Diagnostics.CodeAnalysis;
 using NWindows.Input;
 using NWindows.Win32;
 
-namespace NWindows;
+namespace NWindows.Threading;
 
 /// <summary>
 /// The dispatcher provides the infrastructure to manage objects with thread affinity.

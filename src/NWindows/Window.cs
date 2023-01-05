@@ -4,6 +4,7 @@
 
 using System;
 using System.Drawing;
+using NWindows.Threading;
 
 namespace NWindows;
 
@@ -94,7 +95,7 @@ public abstract class Window : DispatcherObject
     public void ShowDialog()
     {
         // Block until this window is closed
-        Dispatcher.Run(this);
+        Dispatcher.PushFrame(new ModalFrame(Dispatcher, this));
     }
 
     public static Window Create(WindowCreateOptions options)
@@ -124,5 +125,26 @@ public abstract class Window : DispatcherObject
         paintEvent.Paint.Bounds = bounds;
         OnWindowEvent(ref paintEvent);
         return paintEvent.Paint.Handled;
+    }
+    
+    private sealed class ModalFrame : DispatcherFrame
+    {
+        private readonly Window _window;
+
+        public ModalFrame(Dispatcher dispatcher, Window window) : base(dispatcher, false)
+        {
+            _window = window;
+        }
+
+        protected override void Enter()
+        {
+            _window.Parent!.Modal = true;
+        }
+
+
+        protected override void Leave()
+        {
+            _window.Parent!.Modal = false;
+        }
     }
 }

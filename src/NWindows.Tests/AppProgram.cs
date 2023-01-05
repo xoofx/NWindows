@@ -3,7 +3,7 @@
 // See license.txt file in the project root for full license information.
 
 using System.Drawing;
-using TerraFX.Interop.Windows;
+using NWindows.Threading;
 
 namespace NWindows.Tests;
 

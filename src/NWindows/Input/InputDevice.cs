@@ -2,6 +2,8 @@
 // Licensed under the BSD-Clause 2 license.
 // See license.txt file in the project root for full license information.
 
+using NWindows.Threading;
+
 namespace NWindows.Input;
 
 // https://learn.microsoft.com/en-us/dotnet/api/system.windows.input.inputdevice?view=windowsdesktop-7.0

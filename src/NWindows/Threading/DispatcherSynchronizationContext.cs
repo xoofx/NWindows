@@ -2,7 +2,7 @@
 using System.Diagnostics;
 using System.Threading;
 
-namespace NWindows;
+namespace NWindows.Threading;
 
 [DebuggerDisplay("DispatcherSynchronizationContext {Dispatcher}")]
 public class DispatcherSynchronizationContext : SynchronizationContext
@@ -28,7 +28,7 @@ public class DispatcherSynchronizationContext : SynchronizationContext
     }
 
     public Dispatcher Dispatcher { get; }
-    
+
     /// <summary>
     /// Synchronously invoke the callback in the SynchronizationContext.
     /// </summary>

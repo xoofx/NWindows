@@ -4,7 +4,7 @@
 
 using System.Runtime.CompilerServices;
 
-namespace NWindows;
+namespace NWindows.Threading;
 
 public abstract class DispatcherObject
 {

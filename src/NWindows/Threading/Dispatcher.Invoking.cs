@@ -5,12 +5,12 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Linq;
-using System.Diagnostics;
 
-namespace NWindows;
+namespace NWindows.Threading;
 
 /// <summary>
 /// The dispatcher provides the infrastructure to manage objects with thread affinity.
@@ -55,16 +55,13 @@ public abstract partial class Dispatcher
         }
     }
 
-    public void Run(Window? window = null)
+    public void Run()
     {
         VerifyAccess();
         PushFrameImpl(new DispatcherFrame(this));
 
-        if (window == null)
-        {
-            _shutdownFinished?.Invoke(this, EventArgs.Empty);
-            _hasShutdownFinished = true;
-        }
+        _shutdownFinished?.Invoke(this, EventArgs.Empty);
+        _hasShutdownFinished = true;
     }
     public void PushFrame(DispatcherFrame frame)
     {
@@ -126,10 +123,17 @@ public abstract partial class Dispatcher
         if (action == null) throw new ArgumentNullException(nameof(action));
         if (CheckAccess())
         {
-            var task = new Task(action, cancellationToken ?? CancellationToken.None);
-            var frame = new TaskDispatcherFrame(this, task, _taskScheduler);
-            PushFrame(frame);
-            // No need to wait for task, as the frame will close as soon as the task is completed
+            if (cancellationToken is null)
+            {
+                action();
+            }
+            else
+            {
+                // No need to wait for task, as the frame will close as soon as the task is completed
+                var task = new Task(action, cancellationToken ?? CancellationToken.None);
+                var frame = new TaskDispatcherFrame(this, task, _taskScheduler);
+                PushFrame(frame);
+            }
         }
         else
         {
@@ -144,10 +148,17 @@ public abstract partial class Dispatcher
         Task<T> task;
         if (CheckAccess())
         {
-            task = new Task<T>(func, cancellationToken ?? CancellationToken.None);
-            var frame = new TaskDispatcherFrame(this, task, _taskScheduler);
-            PushFrame(frame);
-            // No need to wait for task, as the frame will close as soon as the task is completed
+            if (cancellationToken is null)
+            {
+                return func();
+            }
+            else
+            {
+                // No need to wait for task, as the frame will close as soon as the task is completed
+                task = new Task<T>(func, cancellationToken ?? CancellationToken.None);
+                var frame = new TaskDispatcherFrame(this, task, _taskScheduler);
+                PushFrame(frame);
+            }
         }
         else
         {
@@ -262,8 +273,6 @@ public abstract partial class Dispatcher
         return true;
     }
 
-
-
     internal abstract void NotifyJobQueue();
 
     private class DispatcherTaskScheduler : TaskScheduler
@@ -301,7 +310,7 @@ public abstract partial class Dispatcher
         }
     }
 
-    internal struct DispatcherJob
+    internal readonly struct DispatcherJob
     {
         public DispatcherJob(Task task)
         {
@@ -317,7 +326,7 @@ public abstract partial class Dispatcher
 
         public readonly object Callback;
 
-        public CancellationToken CancellationToken;
+        public readonly CancellationToken CancellationToken;
     }
 
     private class TaskDispatcherFrame : DispatcherFrame

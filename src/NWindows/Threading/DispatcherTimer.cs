@@ -3,7 +3,7 @@
 // See license.txt file in the project root for full license information.
 using System;
 
-namespace NWindows;
+namespace NWindows.Threading;
 
 public class DispatcherTimer
 {
@@ -23,12 +23,12 @@ public class DispatcherTimer
         this(dispatcher, callback, interval)
     {
     }
-    
+
     private DispatcherTimer(Dispatcher dispatcher, EventHandler? callback = null, TimeSpan? interval = null)
     {
         _timerLock = new object();
         Dispatcher = dispatcher;
-    
+
         if (interval.HasValue)
         {
             _interval = interval.Value;
