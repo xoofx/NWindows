@@ -5,6 +5,7 @@
 using System;
 using System.Drawing;
 using System.Runtime.InteropServices;
+using System.Text;
 using TerraFX.Interop.Windows;
 using static TerraFX.Interop.Windows.WS;
 using static TerraFX.Interop.Windows.HWND;
@@ -12,10 +13,15 @@ using static TerraFX.Interop.Windows.MK;
 using static TerraFX.Interop.Windows.Windows;
 using static TerraFX.Interop.Windows.WM;
 using static TerraFX.Interop.Windows.TME;
+using NWindows.Input;
 
 namespace NWindows.Win32;
 
 // Check about hittest https://github.com/microsoft/terminal/blob/547349af77df16d0eed1c73ba3041c84f7b063da/src/cascadia/WindowsTerminal/NonClientIslandWindow.cpp
+
+// TODO to handle:
+// - WM_POINTERUPDATE https://learn.microsoft.com/en-us/windows/win32/inputmsg/wm-pointerupdate
+// - WM_INPUT https://learn.microsoft.com/en-us/windows/win32/inputdev/wm-input
 
 internal unsafe class Win32Window : Window
 {
@@ -42,6 +48,7 @@ internal unsafe class Win32Window : Window
     private bool _disposed;
     private GCHandle _thisGcHandle;
     private string _title;
+    private char _currentCharHighSurrogate;
 
     public Win32Window(in WindowCreateOptions options) : base(options)
     {
@@ -462,7 +469,7 @@ internal unsafe class Win32Window : Window
             return HandleMouse(hWnd, message, wParam, lParam);
         }
 
-        nint result;
+        LRESULT result;
         if (!_hasDecorations)
         {
             result = HandleBorderLessWindowProc(hWnd, message, wParam, lParam);
@@ -564,9 +571,145 @@ internal unsafe class Win32Window : Window
                 UpdateThemeActive();
                 result = 0;
                 break;
+
+            case WM_KEYUP:
+            case WM_KEYDOWN:
+            case WM_SYSKEYUP:
+            case WM_SYSKEYDOWN:
+                result = HandleKey(message, wParam, lParam);
+                break;
+
+            case WM_CHAR:
+                HandleChar(wParam, lParam);
+                result = 0;
+                break;
         }
 
         return result;
+    }
+
+    private void HandleChar(WPARAM wParam, LPARAM lParam)
+    {
+        var c = (char)wParam;
+        if (char.IsHighSurrogate(c))
+        {
+            _currentCharHighSurrogate = c;
+            return;
+        }
+
+        Rune rune;
+        if (char.IsSurrogatePair(_currentCharHighSurrogate, c))
+        {
+            rune = new Rune(char.ConvertToUtf32(_currentCharHighSurrogate, c));
+            _currentCharHighSurrogate = (char)0;
+        }
+        else
+        {
+            rune = new Rune(c);
+        }
+
+        var textEvent = new WindowEvent(WindowEventKind.Text);
+        textEvent.Text.Rune = rune;
+        OnWindowEvent(ref textEvent);
+    }
+
+    private LRESULT HandleKey(uint message, WPARAM wParam, LPARAM lParam)
+    {
+        var virtualKey = GetVirtualKey(wParam, lParam);
+
+        // If false, up
+        var isDown = message == WM_KEYDOWN || message == WM_SYSKEYDOWN;
+
+        var keyEvent = new WindowEvent(WindowEventKind.Keyboard);
+        keyEvent.Keyboard.Key = Win32KeyInterop.VirtualKeyToKey(virtualKey);
+        keyEvent.Keyboard.State = isDown ? KeyStates.Down : KeyStates.None;
+        keyEvent.Keyboard.Modifiers = Win32KeyInterop.GetSystemModifierKeys();
+        keyEvent.Keyboard.ScanCode = (ushort)GetScanCode(wParam, lParam);
+        keyEvent.Keyboard.IsExtended = IsExtendedKey(lParam);
+        keyEvent.Keyboard.IsSystem = message == WM_SYSKEYDOWN || message == WM_SYSKEYUP;
+        keyEvent.Keyboard.Repeat = ((ushort)lParam) & 0x7FFF;
+
+        // Only keep track of toggle state for the following keys
+        if (virtualKey == VK.VK_CAPITAL || virtualKey == VK.VK_SCROLL || virtualKey == VK.VK_NUMLOCK)
+        {
+            if ((GetKeyState(virtualKey) & 1) != 0)
+            {
+                keyEvent.Keyboard.State |= KeyStates.Toggled;
+            }
+        }
+
+        OnWindowEvent(ref keyEvent);
+
+        return keyEvent.Keyboard.Handled ? 0 : -1;
+    }
+
+    internal static int GetVirtualKey(WPARAM wParam, LPARAM lParam)
+    {
+        int virtualKey = (int)wParam;
+        int keyData = (int)lParam;
+
+        // Find the left/right instance SHIFT keys.
+        if (virtualKey == VK.VK_SHIFT)
+        {
+            var scanCode = (uint)((keyData & 0xFF0000) >> 16);
+            virtualKey = unchecked((int)MapVirtualKeyW(scanCode, MAPVK_VSC_TO_VK_EX));
+            if (virtualKey == 0)
+            {
+                virtualKey = VK.VK_LSHIFT;
+            }
+        }
+
+        // Find the left/right instance ALT keys.
+        if (virtualKey == VK.VK_MENU)
+        {
+            bool right = ((keyData & 0x1000000) >> 24) != 0;
+
+            if (right)
+            {
+                virtualKey = VK.VK_RMENU;
+            }
+            else
+            {
+                virtualKey = VK.VK_LMENU;
+            }
+        }
+
+        // Find the left/right instance CONTROL keys.
+        if (virtualKey == VK.VK_CONTROL)
+        {
+            bool right = ((keyData & 0x1000000) >> 24) != 0;
+
+            if (right)
+            {
+                virtualKey = VK.VK_RCONTROL;
+            }
+            else
+            {
+                virtualKey = VK.VK_LCONTROL;
+            }
+        }
+
+        return virtualKey;
+    }
+
+    internal static int GetScanCode(WPARAM wParam, LPARAM lParam)
+    {
+        int keyData = (int)wParam;
+
+        int scanCode = (keyData & 0xFF0000) >> 16;
+        if (scanCode == 0)
+        {
+            int virtualKey = GetVirtualKey(wParam, lParam);
+            scanCode = (int)MapVirtualKeyW((uint)virtualKey, MAPVK_VK_TO_VSC);
+        }
+
+        return scanCode;
+    }
+
+    internal static bool IsExtendedKey(LPARAM lParam)
+    {
+        int keyData = (int)lParam;
+        return ((keyData & 0x01000000) != 0) ? true : false;
     }
 
     private void HandleDispose()

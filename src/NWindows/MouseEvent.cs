@@ -3,6 +3,7 @@
 // See license.txt file in the project root for full license information.
 
 using System.Drawing;
+using NWindows.Input;
 
 namespace NWindows;
 
@@ -27,10 +28,8 @@ public struct MouseEvent : IWindowEvent
 
     public Point WheelDelta;
 
-    public ModifierKeys ModifierKeys;
-
     public override string ToString()
     {
-        return $"{nameof(Kind)}: {Kind}, {nameof(SubKind)}: {SubKind}, {nameof(Button)}: {Button}, {nameof(Pressed)}: {Pressed}, {nameof(Position)}: {Position}, {nameof(WheelDelta)}: {WheelDelta}, {nameof(ModifierKeys)}: {ModifierKeys}";
+        return $"{nameof(Kind)}: {Kind}, {nameof(SubKind)}: {SubKind}, {nameof(Button)}: {Button}, {nameof(Pressed)}: {Pressed}, {nameof(Position)}: {Position}, {nameof(WheelDelta)}: {WheelDelta}";
     }
 }

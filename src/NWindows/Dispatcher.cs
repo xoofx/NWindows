@@ -3,10 +3,12 @@
 // See license.txt file in the project root for full license information.
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Diagnostics.CodeAnalysis;
+using NWindows.Input;
 using NWindows.Win32;
 
 namespace NWindows;
@@ -14,26 +16,46 @@ namespace NWindows;
 /// <summary>
 /// The dispatcher provides the infrastructure to manage objects with thread affinity.
 /// </summary>
-public abstract class Dispatcher
+public abstract partial class Dispatcher
 {
     private bool _hasShutdownStarted;
     private bool _hasShutdownFinished;
 
+    /// <summary>
+    /// Shared synchronization context for a dispatcher
+    /// </summary>
+    protected readonly DispatcherSynchronizationContext DispatcherSynchronizationContext;
+
     // ReSharper disable once InconsistentNaming
+#pragma warning disable IDE1006
     private event EventHandler? _shutdownStarted;
     // ReSharper disable once InconsistentNaming
     private event EventHandler? _shutdownFinished;
+#pragma warning restore IDE1006
 
     // We use a fast static instance for the current dispatcher 
     // We check that we are on the same thread otherwise we override it
-    private static Dispatcher? _currentDispatcher;
+    [ThreadStatic]
+    private static Dispatcher? _tlsCurrentDispatcher; // TODO: we might want to optimize it with a static field as it is done in WPF
 
     // internal list storing all dispatchers
-    private static readonly List<WeakReference<Dispatcher>> Dispatchers = new List<WeakReference<Dispatcher>>();
+    private static readonly List<WeakReference<Dispatcher>> Dispatchers = new();
 
     protected Dispatcher(Thread thread)
     {
         Thread = thread;
+        _taskScheduler = new DispatcherTaskScheduler(this);
+        _queue = new ConcurrentQueue<DispatcherJob>();
+        _frames = new List<DispatcherFrame>();
+
+        DispatcherSynchronizationContext = new DispatcherSynchronizationContext(this);
+
+        // Pre-allocate exception args
+        _defaultDispatcherUnhandledExceptionFilterEventArgs = new DispatcherUnhandledExceptionFilterEventArgs(this);
+        _defaultDispatcherUnhandledExceptionEventArgs = new DispatcherUnhandledExceptionEventArgs(this);
+
+        // Make sure that the TLS dispatcher is set
+        _tlsCurrentDispatcher = this;
     }
 
     /// <summary>
@@ -43,19 +65,7 @@ public abstract class Dispatcher
     /// <remarks>
     /// The current dispatcher is attached to the current thread.
     /// </remarks>
-    public static Dispatcher Current
-    {
-        get
-        {
-            var currentDispatcher = _currentDispatcher;
-            if (currentDispatcher == null || currentDispatcher.Thread != Thread.CurrentThread)
-            {
-                currentDispatcher = FromThread(Thread.CurrentThread);
-                _currentDispatcher = currentDispatcher;
-            }
-            return currentDispatcher;
-        }
-    }
+    public static Dispatcher Current => _tlsCurrentDispatcher ?? FromThread(Thread.CurrentThread);
 
     /// <summary>
     /// Gets the dispatcher from the specified thread or create one if not it does not exist.
@@ -87,6 +97,7 @@ public abstract class Dispatcher
                     i--;
                 }
             }
+
             if (dispatcher == null)
             {
                 dispatcher = CreateDispatcher(thread);
@@ -175,26 +186,18 @@ public abstract class Dispatcher
         _hasShutdownStarted = true;
     }
 
-    public void Run(Window? window = null)
-    {
-        VerifyAccess();
-        RunMessageLoop(window);
+    internal abstract void CreateOrResetTimer(DispatcherTimer timer, int millis);
 
-        if (window == null)
-        {
-            _shutdownFinished?.Invoke(this, EventArgs.Empty);
-            _hasShutdownFinished = true;
-        }
-    }
-
-
+    internal abstract void DestroyTimer(DispatcherTimer timer);
+    
     protected abstract void RequestShutdown();
 
     protected abstract void RunMessageLoop(Window? window);
 
     internal abstract IScreenManager ScreenManager { get; }
 
-
+    internal abstract InputManager InputManager { get; }
+    
     [DoesNotReturn]
     private static void ThrowInvalidAccess()
     {

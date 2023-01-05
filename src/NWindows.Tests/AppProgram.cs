@@ -24,6 +24,14 @@ public class AppProgram
     {
         DisplayScreens();
 
+
+        var timer = new DispatcherTimer
+        {
+            Interval = TimeSpan.FromSeconds(1)
+        };
+        timer.Tick += (sender, args) => Console.WriteLine("Timer!");
+        timer.Start();
+
         _mainWindow = Window.Create(new WindowCreateOptions(WindowEventDelegate)
         {
             //Decorations = false

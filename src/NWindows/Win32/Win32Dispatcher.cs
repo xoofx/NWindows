@@ -22,8 +22,11 @@ namespace NWindows.Win32;
 /// </summary>
 internal unsafe class Win32Dispatcher : Dispatcher
 {
-    [ThreadStatic]
-    private static WndMsg _previousMessage;
+    private WndMsg _previousMessage;
+    private HWND _thisHwnd;
+    private nuint _timerId;
+    private readonly Dictionary<nuint, DispatcherTimer> _mapTimerIdToTimer;
+    private readonly Dictionary<DispatcherTimer, nuint> _mapTimerToTimerId;
 
     private readonly List<Win32Window> _windows;
     private readonly Dictionary<HWND, Win32Window> _mapHandleToWindow;
@@ -32,6 +35,7 @@ internal unsafe class Win32Dispatcher : Dispatcher
     private readonly uint _hotplugDetected;
     private int _runMessageLoop;
     private bool _exitFromCurrentMessageLoop;
+    private readonly uint WM_DISPATCHER_QUEUE;
 
     [ThreadStatic] internal static GCHandle CreatedWindowHandle;
 
@@ -39,8 +43,11 @@ internal unsafe class Win32Dispatcher : Dispatcher
     {
         _windows = new List<Win32Window>();
         _mapHandleToWindow = new Dictionary<HWND, Win32Window>();
+        _mapTimerIdToTimer = new Dictionary<nuint, DispatcherTimer>();
+        _mapTimerToTimerId = new Dictionary<DispatcherTimer, nuint>(ReferenceEqualityComparer.Instance);
 
-        var className = $"NWindows-{Guid.NewGuid():N}";
+        var guidAsString = Guid.NewGuid().ToString("N");
+        var className = $"NWindows-{guidAsString}";
         fixed (char* lpszClassName = className)
         {
             // Initialize the window class.
@@ -48,7 +55,7 @@ internal unsafe class Win32Dispatcher : Dispatcher
             {
                 cbSize = (uint)sizeof(WNDCLASSEXW),
                 style = CS_DBLCLKS | CS_HREDRAW | CS_VREDRAW,
-                lpfnWndProc = &WindowProc,
+                lpfnWndProc = &StaticWindowProc,
                 hInstance = Win32Shared.ModuleHandle,
                 hCursor = LoadCursorW(HINSTANCE.NULL, (ushort*)IDC_ARROW),
                 hbrBackground = (HBRUSH)(COLOR.COLOR_WINDOW + 1),
@@ -74,6 +81,14 @@ internal unsafe class Win32Dispatcher : Dispatcher
         }
 
         ScreenManager = new Win32ScreenManager();
+        InputManager = new Win32InputManager(this);
+
+        fixed (char* lpszWindowMessage = "NWindows.DispatcherProcessQueue")
+            WM_DISPATCHER_QUEUE = RegisterWindowMessageW((ushort*)lpszWindowMessage);
+
+        var windowName = $"NWindows-Dispatcher-{guidAsString}";
+        fixed (char* lpWindowName = windowName)
+            _thisHwnd = CreateWindowEx(0, (ushort*)ClassAtom, (ushort*)lpWindowName, 0, 0, 0, 0, 0, HWND.HWND_MESSAGE, HMENU.NULL, HINSTANCE.NULL, null);
     }
 
     ~Win32Dispatcher()
@@ -82,8 +97,37 @@ internal unsafe class Win32Dispatcher : Dispatcher
     }
 
     public ushort ClassAtom { get; }
+    
+    private new static Win32Dispatcher Current => (Win32Dispatcher)(Dispatcher.Current);
 
     internal override Win32ScreenManager ScreenManager { get; }
+
+    internal override Win32InputManager InputManager { get; }
+
+    internal override bool WaitAndDispatchMessage()
+    {
+        MSG msg;
+        // Use Peek/Get and handle idle
+        if (PeekMessageW(&msg, HWND.NULL, wMsgFilterMin: WM_NULL, wMsgFilterMax: WM_NULL, wRemoveMsg: PM_REMOVE))
+        {
+            if (msg.message == WM_QUIT)
+            {
+                return false;
+            }
+            else
+            {
+                TranslateMessage(&msg);
+                _ = DispatchMessageW(&msg);
+            }
+        }
+
+        return true;
+    }
+
+    internal override void NotifyJobQueue()
+    {
+        PostMessage(_thisHwnd, (uint)WM_DISPATCHER_QUEUE, 0, 0);
+    }
 
     protected override void RequestShutdown()
     {
@@ -173,20 +217,73 @@ internal unsafe class Win32Dispatcher : Dispatcher
         return updateScreens && ScreenManager.TryUpdateScreens();
     }
 
-    [UnmanagedCallersOnly]
-    private static LRESULT WindowProc(HWND hWnd, uint message, WPARAM wParam, LPARAM lParam)
+    private LRESULT GlobalWindowProc(HWND hWnd, uint message, WPARAM wParam, LPARAM lParam)
     {
         LRESULT result = -1;
         try
         {
-            // Log message that are only different
-            var newMessage = new WndMsg(hWnd, message, wParam, lParam);
-            if (_previousMessage != newMessage)
+            if (message == WM_DISPATCHER_QUEUE)
             {
-                Win32Helper.OutputDebugWinProc(newMessage);
-                _previousMessage = newMessage;
+                ProcessJobQueue();
             }
+            else if (message == WM_TIMER)
+            {
+                // We are calling the timer directly instead of going through the queue
+                if (_mapTimerIdToTimer.TryGetValue((nuint)wParam, out var timer))
+                {
+                    timer.OnTick();
+                }
+            }
+            else if (message == WM_NCDESTROY)
+            {
+                //
+            }
+        }
+        catch (Exception ex)
+        {
+            // Log exception?
+            // We should never crash with an exception in a WindowProc
+            result = -1;
+        }
+        finally
+        {
+            if (result < 0)
+            {
+                result = DefWindowProcW(hWnd, message, wParam, lParam);
+            }
+        }
 
+        return result;
+
+    }
+
+    private LRESULT WindowProc(HWND hWnd, uint message, WPARAM wParam, LPARAM lParam)
+    {
+        // Install our synchronization context
+        SynchronizationContext.SetSynchronizationContext(DispatcherSynchronizationContext);
+
+        if (_thisHwnd == 0)
+        {
+            _thisHwnd = hWnd;
+        }
+
+        // Log message that are only different
+        var newMessage = new WndMsg(hWnd, message, wParam, lParam);
+        if (_previousMessage != newMessage || message == WM_TIMER)
+        {
+            Win32Helper.OutputDebugWinProc(newMessage);
+            _previousMessage = newMessage;
+        }
+
+        if (hWnd == _thisHwnd)
+        {
+            return GlobalWindowProc(hWnd, message, wParam, lParam);
+        }
+
+        // Handle for Windows
+        LRESULT result = -1;
+        try
+        {
             var handle = GetWindowLongPtrW(hWnd, GWLP_USERDATA);
             Win32Window winWindow;
             if (handle == 0)
@@ -203,37 +300,37 @@ internal unsafe class Win32Dispatcher : Dispatcher
             switch (message)
             {
                 case WM_CREATE:
-                    winWindow.Dispatcher.RegisterWindow(winWindow);
+                    RegisterWindow(winWindow);
                     result = winWindow.WindowProc(hWnd, message, wParam, lParam);
                     break;
 
                 case WM_DESTROY:
-                {
-                    var popup = winWindow.Kind == WindowKind.Popup;
-                    result = winWindow.WindowProc(hWnd, message, wParam, lParam);
-                    winWindow.Dispatcher.UnRegisterWindow(winWindow);
+                    {
+                        var popup = winWindow.Kind == WindowKind.Popup;
+                        result = winWindow.WindowProc(hWnd, message, wParam, lParam);
+                        UnRegisterWindow(winWindow);
 
-                    // TODO: Allow to customize this behavior
-                    if (winWindow.Dispatcher._windows.Count == 0)
-                    {
-                        PostQuitMessage(0);
-                    }
-                    else
-                    {
-                        if (popup)
+                        // TODO: Allow to customize this behavior
+                        if (_windows.Count == 0)
                         {
-                            winWindow.Dispatcher._exitFromCurrentMessageLoop = true;
+                            PostQuitMessage(0);
                         }
+                        else
+                        {
+                            if (popup)
+                            {
+                                _exitFromCurrentMessageLoop = true;
+                            }
+                        }
+                        result = 0;
                     }
-                    result = 0;
-                }
                     break;
 
                 default:
-                {
-                    result = winWindow.WindowProc(hWnd, message, wParam, lParam);
-                    break;
-                }
+                    {
+                        result = winWindow.WindowProc(hWnd, message, wParam, lParam);
+                        break;
+                    }
             }
         }
         catch (Exception ex)
@@ -253,11 +350,49 @@ internal unsafe class Win32Dispatcher : Dispatcher
         return result;
     }
 
+    [UnmanagedCallersOnly]
+    private static LRESULT StaticWindowProc(HWND hWnd, uint message, WPARAM wParam, LPARAM lParam)
+    {
+        return Current.WindowProc(hWnd, message, wParam, lParam);
+    }
+
     private void ReleaseUnmanagedResources()
     {
         if (ClassAtom != 0)
         {
             UnregisterClassW((ushort*)ClassAtom, Win32Shared.ModuleHandle);
+        }
+    }
+
+    internal override void CreateOrResetTimer(DispatcherTimer timer, int millis)
+    {
+        bool created = false;
+        if (!_mapTimerToTimerId.TryGetValue(timer, out var timerId))
+        {
+            _timerId++;
+            timerId = _timerId;
+            created = true;
+        }
+
+        if (SetTimer(_thisHwnd, timerId, (uint)millis, null) == 0)
+        {
+            throw new InvalidOperationException("Unable to create/reset timer.");
+        }
+
+        if (created)
+        {
+            _mapTimerIdToTimer.Add(timerId, timer);
+            _mapTimerToTimerId.Add(timer, timerId);
+        }
+    }
+
+    internal override void DestroyTimer(DispatcherTimer timer)
+    {
+        if (_mapTimerToTimerId.TryGetValue(timer, out var timerId))
+        {
+            _mapTimerToTimerId.Remove(timer);
+            _mapTimerIdToTimer.Remove(timerId);
+            KillTimer(_thisHwnd, timerId);
         }
     }
 

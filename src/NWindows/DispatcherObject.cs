@@ -8,9 +8,13 @@ namespace NWindows;
 
 public abstract class DispatcherObject
 {
-    internal DispatcherObject()
+    internal DispatcherObject() : this(Dispatcher.Current)
     {
-        Dispatcher = Dispatcher.Current;
+    }
+
+    internal DispatcherObject(Dispatcher dispatcher)
+    {
+        Dispatcher = dispatcher;
     }
 
     public Dispatcher Dispatcher { get; }

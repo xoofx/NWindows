@@ -7,6 +7,7 @@ using System.Text;
 using TerraFX.Interop.Windows;
 using static TerraFX.Interop.Windows.WM;
 using static TerraFX.Interop.Windows.Windows;
+using NWindows.Input;
 
 namespace NWindows.Win32;
 
@@ -19,12 +20,17 @@ internal readonly record struct WndMsg(HWND HWnd, uint Message, WPARAM WParam, L
     }
 }
 
+internal static class Win32VirtualKeys
+{
+}
+
 internal static class Win32Helper
 {
     public static void OutputDebugWinProc(in WndMsg msg, string? context = null)
     {
         Console.Out.WriteLine(context is null ? msg.ToString() : $"{context}{msg}");
     }
+
 
     public static string GetMessageName(uint message)
     {

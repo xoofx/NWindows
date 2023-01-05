@@ -4,33 +4,27 @@
 
 using System;
 
-namespace NWindows;
+namespace NWindows.Input;
 
+/// <summary>
+///     The KeyStates enumeration describes the state that keyboard keys
+///     can be in.
+/// </summary>
 [Flags]
-public enum ModifierKeys
+public enum KeyStates : byte
 {
     /// <summary>
-    ///    No modifiers are pressed.
+    ///     No state (same as up).
     /// </summary>
     None = 0,
 
     /// <summary>
-    ///    An alt key.
+    ///    The key is down.
     /// </summary>
-    Alt = 1,
+    Down = 1,
 
     /// <summary>
-    ///    A control key.
+    ///    The key is toggled on.
     /// </summary>
-    Control = 2,
-
-    /// <summary>
-    ///    A shift key.
-    /// </summary>
-    Shift = 4,
-
-    /// <summary>
-    ///    A windows key.
-    /// </summary>
-    Windows = 8
+    Toggled = 2
 }
