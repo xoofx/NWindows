@@ -112,7 +112,7 @@ public abstract partial class Dispatcher
 
     private void VerifyRunning()
     {
-        if (_frames.Count > 0)
+        if (_frames.Count == 0)
         {
             throw new InvalidOperationException("Hub is not running");
         }

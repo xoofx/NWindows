@@ -94,6 +94,12 @@ public abstract class Window : DispatcherObject
 
     public void ShowDialog()
     {
+        CheckAccess();
+        if (Kind != WindowKind.Popup)
+        {
+            throw new InvalidOperationException("Invalid dialog kind. Cannot show a dialog for a non Popup Window");
+        }
+        
         // Block until this window is closed
         Dispatcher.PushFrame(new ModalFrame(Dispatcher, this));
     }
@@ -138,13 +144,14 @@ public abstract class Window : DispatcherObject
 
         protected override void Enter()
         {
-            _window.Parent!.Modal = true;
+            _window.Modal = true;
         }
 
 
         protected override void Leave()
         {
-            _window.Parent!.Modal = false;
+            // The Window has been destroyed if we leave, so we don't need to modify the modal
+            //_window.Modal = false;
         }
     }
 }
