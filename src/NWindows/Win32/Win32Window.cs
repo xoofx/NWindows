@@ -49,6 +49,14 @@ internal unsafe class Win32Window : Window
     private GCHandle _thisGcHandle;
     private string _title;
     private char _currentCharHighSurrogate;
+    private bool _maximizeable;
+    private bool _minimizeable;
+
+    private Color _backgroundColor;
+    private HBRUSH _backgroundColorBrush;
+    private bool _isDefaultColorBrush;
+    private bool _showInTaskBar;
+    private bool _initialShowInTaskBar;
 
     public Win32Window(in WindowCreateOptions options) : base(options)
     {
@@ -59,6 +67,17 @@ internal unsafe class Win32Window : Window
         _mouseLastY = -1;
         _opacity = 1.0f;
         _enable = true;
+        _initialShowInTaskBar = options.ShowInTaskBar;
+        if (options.BackgroundColor.HasValue)
+        {
+            UpdateBackgroundColor(options.BackgroundColor.Value, false);
+        }
+        else
+        {
+            _backgroundColor = GetDefaultWindowBackgroundColor();
+            _backgroundColorBrush = GetSysColorBrush(COLOR.COLOR_WINDOW);
+            _isDefaultColorBrush = true;
+        }
         _parentWindow = (Win32Window?)options.Parent;
         Kind = options.Kind;
         CreateWindowHandle(options);
@@ -81,6 +100,24 @@ internal unsafe class Win32Window : Window
             if (value != _enable)
             {
                 UpdateEnable(value);
+            }
+        }
+    }
+
+    public override Color BackgroundColor
+    {
+        get
+        {
+            VerifyAccess();
+            return _backgroundColor;
+        }
+        set
+        {
+            VerifyAccess();
+
+            if (_backgroundColor != value)
+            {
+                UpdateBackgroundColor(value);
             }
         }
     }
@@ -170,6 +207,43 @@ internal unsafe class Win32Window : Window
             if (_resizeable != value)
             {
                 UpdateResizeable(value);
+            }
+        }
+    }
+
+    public override bool Maximizeable
+    {
+        get
+        {
+            VerifyAccess();
+            return _maximizeable;
+        }
+        set
+        {
+            VerifyAccess();
+            VerifyResizeable();
+
+            if (_maximizeable != value)
+            {
+                UpdateMaximizeable(value);
+            }
+        }
+    }
+
+
+    public override bool Minimizeable
+    {
+        get
+        {
+            VerifyAccess();
+            return _minimizeable;
+        }
+        set
+        {
+            VerifyAccess();
+            if (_minimizeable != value)
+            {
+                UpdateMinimizeable(value);
             }
         }
     }
@@ -282,11 +356,30 @@ internal unsafe class Win32Window : Window
         set
         {
             VerifyAccessAndNotDestroyed();
-            if (Kind != WindowKind.Popup) throw new InvalidOperationException("Cannot make a non popup Window modal. Only Popup Window can be made modal");
+            VerifyPopup();
 
             if (_modal != value)
             {
                 UpdateModal(value);
+            }
+        }
+    }
+
+    public override bool ShowInTaskBar
+    {
+        get
+        {
+            VerifyAccess();
+            return _showInTaskBar;
+        }
+        set
+        {
+            VerifyAccessAndNotDestroyed();
+            VerifyTopLevel();
+
+            if (_showInTaskBar != value)
+            {
+                UpdateShowInTaskBar(value);
             }
         }
     }
@@ -365,94 +458,6 @@ internal unsafe class Win32Window : Window
 
             return new SizeF(WindowHelper.PixelToLogical(GetSystemMetrics(SM.SM_CXMINTRACK), dpi.X),
                 WindowHelper.PixelToLogical(GetSystemMetrics(SM.SM_CYMINTRACK), dpi.Y));
-        }
-    }
-
-    private void CreateWindowHandle(in WindowCreateOptions options)
-    {
-        _minimumSize = options.MinimumSize ?? SizeF.Empty;
-        _maximumSize = options.MaximumSize ?? SizeF.Empty;
-
-        // Make sure that the size we have can't be smaller than the default
-        UpdateMinimumSize(_minimumSize, false, false);
-        UpdateMaximumSize(_maximumSize, false, false);
-
-        var positionX = CW_USEDEFAULT;
-        var positionY = CW_USEDEFAULT;
-        if (options.Position is { } pos)
-        {
-            positionX = pos.X;
-            positionY = pos.Y;
-        }
-
-        var width = CW_USEDEFAULT;
-        var height = CW_USEDEFAULT;
-
-        if (options.Size is { } size)
-        {
-            width = size.Width;
-            height = size.Height;
-        }
-
-        // Popup windows don't have a default size with CreateWindowEx, so force one
-        if (options.Kind == WindowKind.Popup)
-        {
-            if (width == CW_USEDEFAULT)
-            {
-                width = 512;
-            }
-            if (height == CW_USEDEFAULT)
-            {
-                height = 256;
-            }
-        }
-
-        var screen = Screen.Primary;
-        if (!options.Decorations && screen != null)
-        {
-            if (width == CW_USEDEFAULT || height == CW_USEDEFAULT)
-            {
-                width = WindowHelper.LogicalToPixel(screen.Size.Width * 0.80f, screen.Dpi.X);
-                height = WindowHelper.LogicalToPixel(screen.Size.Height * 0.80f, screen.Dpi.Y);
-            }
-
-            if (positionX == CW_USEDEFAULT || positionY == CW_USEDEFAULT)
-            {
-                positionX = WindowHelper.LogicalToPixel(screen.Size.Width * 0.10f, screen.Dpi.X);
-                positionY = WindowHelper.LogicalToPixel(screen.Size.Height * 0.10f, screen.Dpi.Y);
-            }
-        }
-
-        var (style, styleEx) = GetStyleAndStyleExFromOptions(options);
-        fixed (char* lpWindowName = options.Title)
-        {
-            _thisGcHandle = GCHandle.Alloc(this);
-            Win32Dispatcher.CreatedWindowHandle = _thisGcHandle;
-            Handle = CreateWindowExW(
-                styleEx,
-                (ushort*)Dispatcher.ClassAtom,
-                (ushort*)lpWindowName,
-                style,
-                X: positionX,
-                Y: positionY,
-                nWidth: width,
-                nHeight: height,
-                hWndParent: options.Parent is {} parentWindow ? (HWND)parentWindow.Handle : HWND_DESKTOP,
-                hMenu: HMENU.NULL,
-                hInstance: Win32Shared.ModuleHandle,
-                lpParam: (void*)null
-            );
-            Win32Dispatcher.CreatedWindowHandle = default;
-
-            UpdateThemeActive();
-            UpdateCompositionEnabled();
-
-            if (options.Visible)
-            {
-                ShowWindow(HWnd, SW.SW_SHOWDEFAULT);
-                InvalidateRect(HWnd, null, false);
-                UpdateWindow(HWnd);
-            }
         }
     }
 
@@ -1101,7 +1106,7 @@ internal unsafe class Win32Window : Window
         {
             PAINTSTRUCT ps;
             var hdc = BeginPaint(HWnd, &ps);
-            FillRect(hdc, &rect, (HBRUSH)(COLOR.COLOR_WINDOW + 1));
+            FillRect(hdc, &rect, _backgroundColorBrush);
             EndPaint(HWnd, &ps);
         }
     }
@@ -1354,6 +1359,27 @@ internal unsafe class Win32Window : Window
         // Notify is handled by WindowProc
     }
 
+    private void UpdateBackgroundColor(Color value, bool notify = true)
+    {
+        // If we don't have a default color brush
+        if (!_isDefaultColorBrush)
+        {
+            DeleteObject(_backgroundColorBrush);
+        }
+
+        _backgroundColor = value;
+        _backgroundColorBrush = CreateSolidBrush(Win32Helper.FromColor(value));
+        _isDefaultColorBrush = false;
+
+        if (notify)
+        {
+            InvalidateRect(HWnd, null, false);
+            UpdateWindow(HWnd);
+            SendMessage(HWnd, WM_ERASEBKGND, 0, 0);
+            OnFrameEvent(FrameEventKind.BackgroundColorChanged);
+        }
+    }
+
     private void UpdateTitle(string title)
     {
         fixed (char* pTitle = title)
@@ -1409,6 +1435,44 @@ internal unsafe class Win32Window : Window
         OnFrameEvent(FrameEventKind.ResizeableChanged);
     }
     
+    private void UpdateMaximizeable(bool value)
+    {
+        var style = GetWindowStyle(HWnd);
+        if (value)
+        {
+            style |= WS_MAXIMIZEBOX;
+        }
+        else
+        {
+            style &= ~(uint)(WS_MAXIMIZEBOX);
+        }
+        SetWindowLongPtr(HWnd, GWL.GWL_STYLE, (nint)style);
+        InvalidateRect(HWnd, null, false);
+        UpdateWindow(HWnd);
+
+        _maximizeable= value;
+        OnFrameEvent(FrameEventKind.MaximizeableChanged);
+    }
+
+    private void UpdateMinimizeable(bool value)
+    {
+        var style = GetWindowStyle(HWnd);
+        if (value)
+        {
+            style |= WS_MINIMIZEBOX;
+        }
+        else
+        {
+            style &= ~(uint)(WS_MINIMIZEBOX);
+        }
+        SetWindowLongPtr(HWnd, GWL.GWL_STYLE, (nint)style);
+        InvalidateRect(HWnd, null, false);
+        UpdateWindow(HWnd);
+
+        _minimizeable = value;
+        OnFrameEvent(FrameEventKind.MinimizeableChanged);
+    }
+
     private void UpdateWindowState(WindowState state)
     {
         switch (state)
@@ -1558,12 +1622,144 @@ internal unsafe class Win32Window : Window
         OnFrameEvent(FrameEventKind.ModalChanged);
     }
 
+    private void UpdateShowInTaskBar(bool value)
+    {
+        var exStyle = GetWindowExStyle(HWnd);
+        if (value)
+        {
+            exStyle |= WS_EX_APPWINDOW;
+        }
+        else
+        {
+            exStyle &= ~(uint)(WS_EX_APPWINDOW);
+        }
+
+        // For some reason, if the window was created without the WS_EX_APPWINDOW
+        // We need to force hide/show to add the WS_EX_APPWINDOW at least once to be able to toggle it after
+        if (!_initialShowInTaskBar)
+        {
+            ShowWindow(HWnd, SW.SW_HIDE);
+        }
+
+        SetWindowLongPtr(HWnd, GWL.GWL_EXSTYLE, (nint)exStyle);
+
+        if (!_initialShowInTaskBar)
+        {
+            ShowWindow(HWnd, SW.SW_SHOW);
+            // Once we have assigned WS_EX_APPWINDOW at least once, we don't need to hack with show/hide
+            // for subsequent ShowInTaskBar changes
+            _initialShowInTaskBar = true;
+        }
+
+        _showInTaskBar = value;
+        OnFrameEvent(FrameEventKind.ShowInTaskBarChanged);
+    }
+
+    private void CreateWindowHandle(in WindowCreateOptions options)
+    {
+        _minimumSize = options.MinimumSize ?? SizeF.Empty;
+        _maximumSize = options.MaximumSize ?? SizeF.Empty;
+
+        // Make sure that the size we have can't be smaller than the default
+        UpdateMinimumSize(_minimumSize, false, false);
+        UpdateMaximumSize(_maximumSize, false, false);
+
+        var positionX = CW_USEDEFAULT;
+        var positionY = CW_USEDEFAULT;
+        if (options.Position is { } pos)
+        {
+            positionX = pos.X;
+            positionY = pos.Y;
+        }
+
+        var width = CW_USEDEFAULT;
+        var height = CW_USEDEFAULT;
+
+        if (options.Size is { } size)
+        {
+            width = size.Width;
+            height = size.Height;
+        }
+
+        // Popup windows don't have a default size with CreateWindowEx, so force one
+        if (options.Kind == WindowKind.Popup)
+        {
+            if (width == CW_USEDEFAULT)
+            {
+                width = 512;
+            }
+            if (height == CW_USEDEFAULT)
+            {
+                height = 256;
+            }
+        }
+
+        var screen = Screen.Primary;
+        if (!options.Decorations && screen != null)
+        {
+            if (width == CW_USEDEFAULT || height == CW_USEDEFAULT)
+            {
+                width = WindowHelper.LogicalToPixel(screen.Size.Width * 0.80f, screen.Dpi.X);
+                height = WindowHelper.LogicalToPixel(screen.Size.Height * 0.80f, screen.Dpi.Y);
+            }
+
+            if (positionX == CW_USEDEFAULT || positionY == CW_USEDEFAULT)
+            {
+                positionX = WindowHelper.LogicalToPixel(screen.Size.Width * 0.10f, screen.Dpi.X);
+                positionY = WindowHelper.LogicalToPixel(screen.Size.Height * 0.10f, screen.Dpi.Y);
+            }
+        }
+
+        // By default, a top level window is visible on the taskbar
+        if (options.Kind == WindowKind.TopLevel)
+        {
+            _showInTaskBar = options.ShowInTaskBar;
+        }
+
+        // We are using the hidden Dispatcher HWND for a top level window in order to be able to hide the Window from the taskbar
+        // via ShowInTaskBar
+        var hWndParent = options.Parent is { } parentWindow ? (HWND)parentWindow.Handle : Dispatcher.Hwnd;
+
+        var (style, styleEx) = GetStyleAndStyleExFromOptions(options);
+        fixed (char* lpWindowName = options.Title)
+        {
+            _thisGcHandle = GCHandle.Alloc(this);
+            Win32Dispatcher.CreatedWindowHandle = _thisGcHandle;
+            Handle = CreateWindowExW(
+                styleEx,
+                (ushort*)Dispatcher.ClassAtom,
+                (ushort*)lpWindowName,
+                style,
+                X: positionX,
+                Y: positionY,
+                nWidth: width,
+                nHeight: height,
+                hWndParent: hWndParent,
+                hMenu: HMENU.NULL,
+                hInstance: Win32Shared.ModuleHandle,
+                lpParam: (void*)null
+            );
+            Win32Dispatcher.CreatedWindowHandle = default;
+
+            UpdateThemeActive();
+            UpdateCompositionEnabled();
+
+            if (options.Visible)
+            {
+                ShowWindow(HWnd, SW.SW_SHOWDEFAULT);
+                InvalidateRect(HWnd, null, false);
+                UpdateWindow(HWnd);
+                _visible = options.Visible;
+            }
+        }
+    }
+
     private static (uint, uint) GetStyleAndStyleExFromOptions(in WindowCreateOptions options)
     {
-        uint style = WS_CLIPSIBLINGS | WS_CLIPCHILDREN;
-        //uint styleEx = WS_EX_WINDOWEDGE | WS_EX_ACCEPTFILES;
-        // TODO: handle popup
-        uint styleEx = WS_EX_ACCEPTFILES; // | WS_EX_LAYERED;
+        uint style = WS_CLIPSIBLINGS | WS_CLIPCHILDREN | WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU;
+        uint styleEx = WS_EX_ACCEPTFILES;
+
+        // options.Visible is set after the window is created
 
         if (options.Resizable)
         {
@@ -1572,15 +1768,15 @@ internal unsafe class Win32Window : Window
 
         if (options.Kind == WindowKind.TopLevel)
         {
-            styleEx |= WS_EX_APPWINDOW;
+            if (options.ShowInTaskBar)
+            {
+                styleEx |= WS_EX_APPWINDOW;
+            }
         }
         else if (options.Kind == WindowKind.Popup)
         {
             style |= WS_POPUP;
-            //styleEx |= WS_EX_WINDOWEDGE;
         }
-
-        style |= WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU;
 
         if (options.Maximizable && !options.MaximumSize.HasValue)
         {
@@ -1607,6 +1803,12 @@ internal unsafe class Win32Window : Window
         }
 
         return (style, styleEx);
+    }
+
+    private Color GetDefaultWindowBackgroundColor()
+    {
+        // This is matching what is declared in Win32Dispatcher for the Window Class
+        return Win32Helper.ToColor((COLORREF)GetSysColor(COLOR.COLOR_WINDOW));
     }
 
     private void VerifyAccessAndNotDestroyed()

@@ -30,5 +30,9 @@ public enum FrameEventKind
     Disabled,
     Close,
     TakeFocus,
-    TitleChanged
+    TitleChanged,
+    MaximizeableChanged,
+    MinimizeableChanged,
+    BackgroundColorChanged,
+    ShowInTaskBarChanged,
 }

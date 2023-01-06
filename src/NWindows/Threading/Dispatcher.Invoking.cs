@@ -5,7 +5,6 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -55,61 +54,6 @@ public abstract partial class Dispatcher
         }
     }
 
-    public void Run()
-    {
-        VerifyAccess();
-        PushFrameImpl(new DispatcherFrame(this));
-
-        _shutdownFinished?.Invoke(this, EventArgs.Empty);
-        _hasShutdownFinished = true;
-    }
-    public void PushFrame(DispatcherFrame frame)
-    {
-        VerifyAccess();
-        VerifyRunning();
-        PushFrameImpl(frame);
-    }
-    
-    private void PushFrameImpl(DispatcherFrame frame)
-    {
-        if (_hasShutdownStarted)
-        {
-            throw new InvalidOperationException("Can't push a new frame. The shutdown has been already started");
-        }
-
-        if (frame.Dispatcher != this)
-        {
-            throw new InvalidOperationException("Dispatcher frame is not attached to this dispatcher");
-        }
-
-        _frames.Add(frame);
-        try
-        {
-            frame.EnterInternal();
-
-            while (!_hasShutdownStarted)
-            {
-                // If the current frame request to exit, we exit immediately from the frame
-                if (!frame.Continue || !WaitAndDispatchMessage())
-                {
-                    break;
-                }
-                // handle shutdown
-                // handle queue
-                // handle timer
-                // handle idle
-            }
-        }
-        finally
-        {
-            Debug.Assert(_frames.Count > 0);
-            _frames.RemoveAt(_frames.Count - 1);
-            frame.LeaveInternal();
-        }
-    }
-
-    internal abstract bool WaitAndDispatchMessage();
-
     private void VerifyRunning()
     {
         if (_frames.Count == 0)
@@ -130,7 +74,7 @@ public abstract partial class Dispatcher
             else
             {
                 // No need to wait for task, as the frame will close as soon as the task is completed
-                var task = new Task(action, cancellationToken ?? CancellationToken.None);
+                var task = new Task(action, cancellationToken.Value);
                 var frame = new TaskDispatcherFrame(this, task, _taskScheduler);
                 PushFrame(frame);
             }
@@ -155,7 +99,7 @@ public abstract partial class Dispatcher
             else
             {
                 // No need to wait for task, as the frame will close as soon as the task is completed
-                task = new Task<T>(func, cancellationToken ?? CancellationToken.None);
+                task = new Task<T>(func, cancellationToken.Value);
                 var frame = new TaskDispatcherFrame(this, task, _taskScheduler);
                 PushFrame(frame);
             }
@@ -203,39 +147,25 @@ public abstract partial class Dispatcher
 
         NotifyJobQueue();
     }
-
-
+    
     internal void ProcessJobQueue()
     {
         var hasStillJobs = _queue.TryDequeue(out var job);
 
-        if (job.Callback != null)
+        switch (job.Callback)
         {
-            try
-            {
-                switch (job.Callback)
-                {
-                    case Task task:
-                        _taskScheduler.ExecuteTask(task);
-                        break;
+            case Task task:
+                _taskScheduler.ExecuteTask(task);
+                break;
 
-                    case Action action:
-                    {
-                        if (!job.CancellationToken.IsCancellationRequested)
-                        {
-                            action();
-                        }
-
-                        break;
-                    }
-                }
-            }
-            catch (Exception ex) when (FilterException(ex))
+            case Action action:
             {
-                if (!HandleException(ex))
+                if (!job.CancellationToken.IsCancellationRequested)
                 {
-                    throw;
+                    action();
                 }
+
+                break;
             }
         }
 
@@ -245,7 +175,7 @@ public abstract partial class Dispatcher
         }
     }
     
-    private bool HandleException(Exception exception)
+    internal bool HandleException(Exception exception)
     {
         var unhandled = _unhandledException;
         if (unhandled != null)
@@ -258,7 +188,7 @@ public abstract partial class Dispatcher
         return false;
     }
 
-    private bool FilterException(Exception exception)
+    internal bool FilterException(Exception exception)
     {
         var unhandledFilter = _unhandledExceptionFilter;
 
@@ -351,40 +281,4 @@ public abstract partial class Dispatcher
             _task.Start(_scheduler);
         }
     }
-}
-
-
-public sealed class DispatcherUnhandledExceptionFilterEventArgs : DispatcherEventArgs
-{
-    internal DispatcherUnhandledExceptionFilterEventArgs(Dispatcher dispatcher)
-        : base(dispatcher)
-    {
-    }
-
-    public Exception Exception { get; internal set; }
-
-    public bool RequestCatch { get; set; }
-}
-
-public class DispatcherEventArgs : EventArgs
-{
-    internal DispatcherEventArgs(Dispatcher dispatcher)
-    {
-        Debug.Assert(dispatcher != null);
-        Dispatcher = dispatcher;
-    }
-
-    public Dispatcher Dispatcher { get; }
-}
-
-public sealed class DispatcherUnhandledExceptionEventArgs : DispatcherEventArgs
-{
-    internal DispatcherUnhandledExceptionEventArgs(Dispatcher dispatcher)
-        : base(dispatcher)
-    {
-    }
-
-    public Exception Exception { get; internal set; }
-
-    public bool Handled { get; set; }
 }

@@ -3,11 +3,10 @@
 // See license.txt file in the project root for full license information.
 
 using System;
-using System.Text;
+using System.Drawing;
 using TerraFX.Interop.Windows;
 using static TerraFX.Interop.Windows.WM;
 using static TerraFX.Interop.Windows.Windows;
-using NWindows.Input;
 
 namespace NWindows.Win32;
 
@@ -31,6 +30,15 @@ internal static class Win32Helper
         Console.Out.WriteLine(context is null ? msg.ToString() : $"{context}{msg}");
     }
 
+    public static Color ToColor(COLORREF colorRef)
+    {
+        return Color.FromArgb(GetRValue(colorRef), GetGValue(colorRef), GetBValue(colorRef));
+    }
+
+    public static COLORREF FromColor(Color color)
+    {
+        return RGB(color.R, color.G, color.B);
+    }
 
     public static string GetMessageName(uint message)
     {

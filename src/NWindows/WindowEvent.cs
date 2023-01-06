@@ -34,13 +34,14 @@ public struct WindowEvent : IWindowEvent
     [FieldOffset(0)] internal HitTestEvent HitTest;
     [FieldOffset(0)] internal CloseEvent Close;
     [FieldOffset(0)] internal TextEvent Text;
+    [FieldOffset(0)] internal IdleEvent Idle;
 
     public override string ToString()
     {
         return Kind switch
         {
             WindowEventKind.Undefined => "Kind: undefined",
-            WindowEventKind.Idle => $"{nameof(Kind)}: {nameof(WindowEventKind.Idle)}",
+            WindowEventKind.Idle => this.Cast<IdleEvent>().ToString(),
             WindowEventKind.Shutdown => $"{nameof(Kind)}: {nameof(WindowEventKind.Shutdown)}",
             WindowEventKind.System => this.Cast<SystemEvent>().ToString(),
             WindowEventKind.Application => $"{nameof(Kind)}: {nameof(WindowEventKind.Application)}",

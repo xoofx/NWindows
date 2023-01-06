@@ -5,6 +5,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using System.Threading;
@@ -31,6 +32,7 @@ public abstract partial class Dispatcher
     private event EventHandler? _shutdownStarted;
     // ReSharper disable once InconsistentNaming
     private event EventHandler? _shutdownFinished;
+    private event DispatcherIdleEventHandler? _idleHandler;
 #pragma warning restore IDE1006
 
     // We use a fast static instance for the current dispatcher 
@@ -154,6 +156,20 @@ public abstract partial class Dispatcher
         }
     }
 
+    public event DispatcherIdleEventHandler Idle
+    {
+        add
+        {
+            VerifyAccess();
+            _idleHandler += value;
+        }
+        remove
+        {
+            VerifyAccess();
+            _idleHandler -= value;
+        }
+    }
+
     /// <summary>
     /// Checks that the current thread owns this dispatcher.
     /// </summary>
@@ -180,19 +196,92 @@ public abstract partial class Dispatcher
     {
         VerifyAccess();
 
-        RequestShutdown();
+        PostQuitToMessageLoop();
         
         _shutdownStarted?.Invoke(this, EventArgs.Empty);
         _hasShutdownStarted = true;
     }
 
+    public void Run()
+    {
+        VerifyAccess();
+        PushFrameImpl(new DispatcherFrame(this));
+
+        _shutdownFinished?.Invoke(this, EventArgs.Empty);
+        _hasShutdownFinished = true;
+    }
+
+    public void PushFrame(DispatcherFrame frame)
+    {
+        VerifyAccess();
+        VerifyRunning();
+        PushFrameImpl(frame);
+    }
+
+    private void PushFrameImpl(DispatcherFrame frame)
+    {
+        if (_hasShutdownStarted)
+        {
+            throw new InvalidOperationException("Can't push a new frame. The shutdown has been already started");
+        }
+
+        if (frame.Dispatcher != this)
+        {
+            throw new InvalidOperationException("Dispatcher frame is not attached to this dispatcher");
+        }
+
+        var applicationIdle = new WindowEvent(WindowEventKind.Idle);
+        var frameCount = _frames.Count;
+        _frames.Add(frame);
+        try
+        {
+            frame.EnterInternal();
+
+            bool blockOnWait = true;
+            while (!_hasShutdownStarted && frame.Continue)
+            {
+                // If any frame already running are asking to shutdown, we need to close this running frame as well
+                // For example, a modal window pushed with WindowModalFrame should force the exit of the frame and any subsequent frame
+                for (int i = 0; i < frameCount; i++)
+                {
+                    if (!_frames[i].Continue)
+                    {
+                        frame.Continue = false;
+                        break;
+                    }
+                }
+
+                if (!frame.Continue)
+                {
+                    break;
+                }
+
+                WaitAndDispatchMessage(blockOnWait);
+
+                // Handle idle
+                // Reset the state of the idle
+                applicationIdle.Idle.Continuous = false;
+                _idleHandler?.Invoke(this, ref applicationIdle.Idle);
+                blockOnWait = !applicationIdle.Idle.Continuous;
+            }
+        }
+        finally
+        {
+            Debug.Assert(_frames.Count > 0);
+            _frames.RemoveAt(_frames.Count - 1);
+            frame.LeaveInternal();
+        }
+    }
+   
+    internal DispatcherFrame? CurrentFrame => _frames.Count > 0 ? _frames[_frames.Count - 1] : null;
+
+    internal abstract void WaitAndDispatchMessage(bool blockOnWait);
+
     internal abstract void CreateOrResetTimer(DispatcherTimer timer, int millis);
 
     internal abstract void DestroyTimer(DispatcherTimer timer);
     
-    protected abstract void RequestShutdown();
-
-    protected abstract void RunMessageLoop(Window? window);
+    internal abstract void PostQuitToMessageLoop();
 
     internal abstract IScreenManager ScreenManager { get; }
 

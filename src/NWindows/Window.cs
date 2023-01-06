@@ -15,21 +15,13 @@ namespace NWindows;
 //
 // Missing properties:
 //
-// - BackColor?
-// - FormBorderStyle => Changed to Resizeable?
 // - DesktopBounds (Gets or sets the size and location of the form on the Windows desktop.)
 // - DesktopLocation (Gets or sets the location of the form on the Windows desktop )
-// - MaximizeBox
-// - MinimizeBox
-// - Modal
-// - ShowInTaskbar
-// - ShowIcon
 // - TransparencyKey
 //
 // Missing methods:
 // - CenterToParent
 // - CenterToScreen
-// - ShowModal
 //
 // Missing events:
 // - DpiChanged?
@@ -48,6 +40,8 @@ public abstract class Window : DispatcherObject
 
     public WindowKind Kind { get; protected set; }
 
+    public abstract Color BackgroundColor { get; set; }
+
     public abstract bool Enable { get; set; }
 
     public abstract bool IsDisposed { get; }
@@ -61,6 +55,10 @@ public abstract class Window : DispatcherObject
     public abstract bool Visible { get; set; }
 
     public abstract bool Resizeable { get; set; }
+
+    public abstract bool Maximizeable { get; set; }
+
+    public abstract bool Minimizeable { get; set; }
 
     public abstract Window? Parent { get; }
     
@@ -84,6 +82,8 @@ public abstract class Window : DispatcherObject
 
     public abstract bool Modal { get; set; }
 
+    public abstract bool ShowInTaskBar { get; set; }
+
     public abstract PointF ScreenToClient(Point position);
 
     public abstract Point ClientToScreen(PointF position);
@@ -94,24 +94,38 @@ public abstract class Window : DispatcherObject
 
     public void ShowDialog()
     {
-        CheckAccess();
-        if (Kind != WindowKind.Popup)
-        {
-            throw new InvalidOperationException("Invalid dialog kind. Cannot show a dialog for a non Popup Window");
-        }
+        VerifyAccess();
+        VerifyPopup();
         
         // Block until this window is closed
-        Dispatcher.PushFrame(new ModalFrame(Dispatcher, this));
+        Dispatcher.PushFrame(new WindowModalFrame(Dispatcher, this));
     }
 
     public static Window Create(WindowCreateOptions options)
     {
+        options.Verify();
+
         if (OperatingSystem.IsWindows())
         {
             return new Win32.Win32Window(options);
         }
 
         throw new PlatformNotSupportedException();
+    }
+
+    protected void VerifyPopup()
+    {
+        if (Kind != WindowKind.Popup) throw new InvalidOperationException("Window is not a Popup. Expecting the window to be a Popup for this operation");
+    }
+
+    protected void VerifyResizeable()
+    {
+        if (!Resizeable) throw new InvalidOperationException("Window is not resizable");
+    }
+
+    protected void VerifyTopLevel()
+    {
+        if (Kind != WindowKind.TopLevel) throw new InvalidOperationException("Window is not a TopLevel. Expecting the window to be a TopLevel for this operation");
     }
 
     protected internal void OnWindowEvent(ref WindowEvent evt)
@@ -131,27 +145,5 @@ public abstract class Window : DispatcherObject
         paintEvent.Paint.Bounds = bounds;
         OnWindowEvent(ref paintEvent);
         return paintEvent.Paint.Handled;
-    }
-    
-    private sealed class ModalFrame : DispatcherFrame
-    {
-        private readonly Window _window;
-
-        public ModalFrame(Dispatcher dispatcher, Window window) : base(dispatcher, false)
-        {
-            _window = window;
-        }
-
-        protected override void Enter()
-        {
-            _window.Modal = true;
-        }
-
-
-        protected override void Leave()
-        {
-            // The Window has been destroyed if we leave, so we don't need to modify the modal
-            //_window.Modal = false;
-        }
     }
 }

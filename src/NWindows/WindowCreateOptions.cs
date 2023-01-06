@@ -25,6 +25,11 @@ public readonly struct WindowCreateOptions
     /// Sets a kind of window. Default is <see cref="WindowKind.TopLevel"/>
     /// </summary>
     public WindowKind Kind { get; init; } = WindowKind.TopLevel;
+
+    /// <summary>
+    /// Sets the desired background color for the window. Default is system dependent.
+    /// </summary>
+    public Color? BackgroundColor { get; init; } = null;
     
     /// <summary>
     /// Sets a desired default position for the window.
@@ -119,7 +124,23 @@ public readonly struct WindowCreateOptions
     public Window? Parent { get; init; } = null;
 
     /// <summary>
+    /// Only valid for a top level window, the window will be shown in the task bar when created. Default is <c>true</c>.
+    /// </summary>
+    public bool ShowInTaskBar { get; init; } = true;
+
+    /// <summary>
     /// Sets the window event delegate that will receive events.
     /// </summary>
     public WindowEventDelegate WindowEventHandler { get; init; }
+
+    /// <summary>
+    /// Verify options and throw an exception if an invalid setup is provided.
+    /// </summary>
+    public void Verify()
+    {
+        if (Kind == WindowKind.Popup && Parent is null)
+        {
+            throw new InvalidOperationException("Invalid options. A Popup window must have a Parent.");
+        }
+    }
 }

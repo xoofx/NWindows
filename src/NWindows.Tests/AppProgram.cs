@@ -3,6 +3,7 @@
 // See license.txt file in the project root for full license information.
 
 using System.Drawing;
+using NWindows.Input;
 using NWindows.Threading;
 
 namespace NWindows.Tests;
@@ -24,16 +25,27 @@ public class AppProgram
     {
         DisplayScreens();
 
-
         var timer = new DispatcherTimer
         {
             Interval = TimeSpan.FromSeconds(1)
         };
-        timer.Tick += (sender, args) => Console.WriteLine("Timer!");
+        int countTimer = 0;
+        timer.Tick += (sender, args) =>
+        {
+            countTimer++;
+            Console.WriteLine($"Timer {countTimer} event");
+        };
         timer.Start();
+
+        //Dispatcher.Current.UnhandledException += (sender, args) =>
+        //{
+        //    args.Handled = args.Exception is ApplicationException;
+        //};
 
         _mainWindow = Window.Create(new WindowCreateOptions(WindowEventDelegate)
         {
+            //ShowIcon = false,
+            //ShowInTaskBar = false
             //Decorations = false
         });
 
@@ -47,6 +59,7 @@ public class AppProgram
             Kind = WindowKind.Popup,
             MinimumSize = new SizeF(100, 100),
             MaximumSize = new SizeF(500, 500),
+            BackgroundColor = Color.FromArgb(0x1e1e1e),
             Parent = _mainWindow!,
             Title = "Popup",
             Decorations = false
@@ -121,6 +134,22 @@ public class AppProgram
             {
                 barHitTestEvent.Result = HitTest.Caption;
                 barHitTestEvent.Handled = true;
+            }
+        }
+        else if (evt.Kind == WindowEventKind.Keyboard)
+        {
+            ref var keyboardEvent = ref evt.Cast<KeyboardEvent>();
+            if (keyboardEvent.IsUp && window.TopLevel)
+            {
+                switch (keyboardEvent.Key)
+                {
+                    case Key.H:
+                        window.ShowInTaskBar = !window.ShowInTaskBar;
+                        break;
+                    case Key.E:
+                        throw new ApplicationException("This is a test application exception");
+                        break;
+                }
             }
         }
     }
