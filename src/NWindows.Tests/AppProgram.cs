@@ -31,7 +31,7 @@ public class AppProgram
     private void LogEvent(object evt)
     {
         _eventId++;
-        Console.WriteLine($"[{_eventId}] {evt.GetType().Name} => {evt}");
+        Console.WriteLine($"[{_eventId}] {evt}");
     }
 
     public void Run()
