@@ -4,6 +4,7 @@
 
 using System;
 using System.Drawing;
+using NWindows.Events;
 using NWindows.Threading;
 
 namespace NWindows;
@@ -31,9 +32,26 @@ namespace NWindows;
 
 public abstract class Window : DispatcherObject
 {
+    // ReSharper disable InconsistentNaming
+    internal readonly CloseEvent _closeEvent;
+    internal readonly FrameEvent _frameEvent;
+    internal readonly HitTestEvent _hitTestEvent;
+    internal readonly KeyboardEvent _keyboardEvent;
+    internal readonly MouseEvent _mouseEvent;
+    internal readonly PaintEvent _paintEvent;
+    internal readonly TextEvent _textEvent;
+    // ReSharper restore InconsistentNaming
+
     internal Window(WindowCreateOptions options)
     {
         Events = options.Events;
+        _closeEvent = new CloseEvent();
+        _frameEvent = new FrameEvent();
+        _hitTestEvent = new HitTestEvent();
+        _keyboardEvent = new KeyboardEvent();
+        _mouseEvent = new MouseEvent();
+        _paintEvent = new PaintEvent();
+        _textEvent = new TextEvent();
     }
 
     public WindowEventHub Events { get; }
@@ -100,9 +118,9 @@ public abstract class Window : DispatcherObject
         VerifyPopup();
 
         var frame = new ModalFrame(Dispatcher, this);
-        WindowEventHub.FrameEventHandler destroyFrame = (Window window, ref FrameEvent evt) =>
+        WindowEventHub.FrameEventHandler destroyFrame = (Window window, FrameEvent evt) =>
         {
-            frame.Continue = evt.SubKind != FrameEventKind.Destroyed;
+            frame.Continue = evt.FrameKind != FrameEventKind.Destroyed;
         };
 
         Events.Frame += destroyFrame;
@@ -144,23 +162,22 @@ public abstract class Window : DispatcherObject
         if (Kind != WindowKind.TopLevel) throw new InvalidOperationException("Window is not a TopLevel. Expecting the window to be a TopLevel for this operation");
     }
 
-    internal void OnWindowEvent(ref WindowEvent evt)
+    internal void OnWindowEvent(WindowEvent evt)
     {
-        Events.OnWindowEvent(this, ref evt);
+        Events.OnWindowEvent(this, evt);
     }
 
     internal void OnFrameEvent(FrameEventKind frameEventKind)
     {
-        var frameEvent = new WindowEvent(WindowEventKind.Frame);
-        frameEvent.Frame.SubKind = frameEventKind;
-        OnWindowEvent(ref frameEvent);
+        _frameEvent.FrameKind = frameEventKind; 
+        OnWindowEvent(_frameEvent);
     }
     internal bool OnPaintEvent(in RectangleF bounds)
     {
-        var paintEvent = new WindowEvent(WindowEventKind.Paint);
-        paintEvent.Paint.Bounds = bounds;
-        OnWindowEvent(ref paintEvent);
-        return paintEvent.Paint.Handled;
+        _paintEvent.Handled = false;
+        _paintEvent.Bounds = bounds;
+        OnWindowEvent(_paintEvent);
+        return _paintEvent.Handled;
     }
 
     private sealed class ModalFrame : DispatcherFrame

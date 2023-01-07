@@ -8,6 +8,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Runtime.ExceptionServices;
 using System.Runtime.InteropServices;
 using System.Threading;
+using NWindows.Events;
 using NWindows.Threading;
 using TerraFX.Interop.Windows;
 using static TerraFX.Interop.Windows.CS;
@@ -37,6 +38,8 @@ internal unsafe class Win32Dispatcher : Dispatcher
     private readonly uint _hotplugDetected;
     private int _runMessageLoop;
     private readonly uint WM_DISPATCHER_QUEUE;
+    private readonly SystemEvent _systemEvent;
+
 
     [ThreadStatic] internal static GCHandle CreatedWindowHandle;
 
@@ -342,12 +345,10 @@ internal unsafe class Win32Dispatcher : Dispatcher
 
     public void OnSystemEvent(SystemEventKind systemEventKind)
     {
-        var localEvent = new WindowEvent(WindowEventKind.System);
-        ref var sysEvent = ref localEvent.Cast<SystemEvent>();
+        _systemEvent.SubKind = systemEventKind;
         foreach (var window in _windows)
         {
-            sysEvent.SubKind = systemEventKind;
-            window.OnWindowEvent(ref localEvent);
+            window.OnWindowEvent(_systemEvent);
         }
     }
 }

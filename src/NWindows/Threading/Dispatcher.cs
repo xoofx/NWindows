@@ -10,7 +10,9 @@ using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Runtime.CompilerServices;
 using System.Threading;
+using NWindows.Events;
 using NWindows.Input;
+using NWindows.Threading.Events;
 using NWindows.Win32;
 
 namespace NWindows.Threading;

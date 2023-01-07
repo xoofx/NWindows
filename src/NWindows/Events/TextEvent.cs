@@ -2,10 +2,11 @@
 // Licensed under the BSD-Clause 2 license.
 // See license.txt file in the project root for full license information.
 
-namespace NWindows;
+using System.Text;
 
-public enum SystemEventKind
+namespace NWindows.Events;
+
+public record TextEvent() : WindowEvent(WindowEventKind.Text)
 {
-    None = 0,
-    ScreenChanged,
+    public Rune Rune;
 }

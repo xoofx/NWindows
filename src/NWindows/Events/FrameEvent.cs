@@ -2,9 +2,9 @@
 // Licensed under the BSD-Clause 2 license.
 // See license.txt file in the project root for full license information.
 
-namespace NWindows.Threading;
+namespace NWindows.Events;
 
-public sealed record IdleEvent() : DispatcherEvent(DispatcherEventKind.Idle)
+public record FrameEvent() : WindowEvent(WindowEventKind.Frame)
 {
-    public bool Continuous { get; set; }
+    public FrameEventKind FrameKind;
 }

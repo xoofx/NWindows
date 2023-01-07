@@ -4,11 +4,11 @@
 
 using System;
 
-namespace NWindows.Threading;
+namespace NWindows.Threading.Events;
 
-public sealed record UnhandledExceptionEvent() : DispatcherEvent(DispatcherEventKind.UnhandledException)
+public sealed record UnhandledExceptionFilterEvent() : DispatcherEvent(DispatcherEventKind.UnhandledExceptionFilter)
 {
     public Exception? Exception { get; internal set; }
 
-    public bool Handled { get; set; }
+    public bool RequestCatch { get; set; }
 }

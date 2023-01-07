@@ -2,6 +2,7 @@
 // Licensed under the BSD-Clause 2 license.
 // See license.txt file in the project root for full license information.
 
+using NWindows.Events;
 using NWindows.Threading;
 
 namespace NWindows;
@@ -152,53 +153,53 @@ public sealed class WindowEventHub : DispatcherObject
         }
     }
 
-    internal void OnWindowEvent(Window window, ref WindowEvent evt)
+    internal void OnWindowEvent(Window window, WindowEvent evt)
     {
-        _all?.Invoke(window, ref evt);
+        _all?.Invoke(window, evt);
         switch (evt.Kind)
         {
             case WindowEventKind.System:
-                _system?.Invoke(window, ref evt.System);
+                _system?.Invoke(window, (SystemEvent)evt);
                 break;
             case WindowEventKind.Frame:
-                _frame?.Invoke(window, ref evt.Frame);
+                _frame?.Invoke(window, (FrameEvent)evt);
                 break;
             case WindowEventKind.Paint:
-                _paint?.Invoke(window, ref evt.Paint);
+                _paint?.Invoke(window, (PaintEvent)evt);
                 break;
             case WindowEventKind.HitTest:
-                _hitTest?.Invoke(window, ref evt.HitTest);
+                _hitTest?.Invoke(window, (HitTestEvent)evt);
                 break;
             case WindowEventKind.Keyboard:
-                _keyboard?.Invoke(window, ref evt.Keyboard);
+                _keyboard?.Invoke(window, (KeyboardEvent)evt);
                 break;
             case WindowEventKind.Mouse:
-                _mouse?.Invoke(window, ref evt.Mouse);
+                _mouse?.Invoke(window, (MouseEvent)evt);
                 break;
             case WindowEventKind.Close:
-                _close?.Invoke(window, ref evt.Close);
+                _close?.Invoke(window, (CloseEvent)evt);
                 break;
             case WindowEventKind.Text:
-                _text?.Invoke(window, ref evt.Text);
+                _text?.Invoke(window, (TextEvent)evt);
                 break;
         }
     }
 
-    public delegate void WindowEventHandler(Window window, ref WindowEvent evt);
+    public delegate void WindowEventHandler(Window window, WindowEvent evt);
 
-    public delegate void MouseEventHandler(Window window, ref MouseEvent evt);
+    public delegate void MouseEventHandler(Window window, MouseEvent evt);
 
-    public delegate void FrameEventHandler(Window window, ref FrameEvent evt);
+    public delegate void FrameEventHandler(Window window, FrameEvent evt);
 
-    public delegate void KeyboardEventHandler(Window window, ref KeyboardEvent evt);
+    public delegate void KeyboardEventHandler(Window window, KeyboardEvent evt);
 
-    public delegate void SystemEventHandler(Window window, ref SystemEvent evt);
+    public delegate void SystemEventHandler(Window window, SystemEvent evt);
 
-    public delegate void PaintEventHandler(Window window, ref PaintEvent evt);
+    public delegate void PaintEventHandler(Window window, PaintEvent evt);
 
-    public delegate void HitTestEventHandler(Window window, ref HitTestEvent evt);
+    public delegate void HitTestEventHandler(Window window, HitTestEvent evt);
 
-    public delegate void CloseEventHandler(Window window, ref CloseEvent evt);
+    public delegate void CloseEventHandler(Window window, CloseEvent evt);
 
-    public delegate void TextEventHandler(Window window, ref TextEvent evt);
+    public delegate void TextEventHandler(Window window, TextEvent evt);
 }

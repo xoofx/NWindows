@@ -14,6 +14,7 @@ using static TerraFX.Interop.Windows.Windows;
 using static TerraFX.Interop.Windows.WM;
 using static TerraFX.Interop.Windows.TME;
 using NWindows.Input;
+using NWindows.Events;
 
 namespace NWindows.Win32;
 
@@ -613,9 +614,8 @@ internal unsafe class Win32Window : Window
             rune = new Rune(c);
         }
 
-        var textEvent = new WindowEvent(WindowEventKind.Text);
-        textEvent.Text.Rune = rune;
-        OnWindowEvent(ref textEvent);
+        _textEvent.Rune = rune;
+        OnWindowEvent(_textEvent);
     }
 
     private LRESULT HandleKey(uint message, WPARAM wParam, LPARAM lParam)
@@ -625,27 +625,28 @@ internal unsafe class Win32Window : Window
         // If false, up
         var isDown = message == WM_KEYDOWN || message == WM_SYSKEYDOWN;
 
-        var keyEvent = new WindowEvent(WindowEventKind.Keyboard);
-        keyEvent.Keyboard.Key = Win32KeyInterop.VirtualKeyToKey(virtualKey);
-        keyEvent.Keyboard.State = isDown ? KeyStates.Down : KeyStates.None;
-        keyEvent.Keyboard.Modifiers = Win32KeyInterop.GetSystemModifierKeys();
-        keyEvent.Keyboard.ScanCode = (ushort)GetScanCode(wParam, lParam);
-        keyEvent.Keyboard.IsExtended = IsExtendedKey(lParam);
-        keyEvent.Keyboard.IsSystem = message == WM_SYSKEYDOWN || message == WM_SYSKEYUP;
-        keyEvent.Keyboard.Repeat = ((ushort)lParam) & 0x7FFF;
+        var keyEvent = _keyboardEvent;
+        keyEvent.Key = Win32KeyInterop.VirtualKeyToKey(virtualKey);
+        keyEvent.State = isDown ? KeyStates.Down : KeyStates.None;
+        keyEvent.Modifiers = Win32KeyInterop.GetSystemModifierKeys();
+        keyEvent.ScanCode = (ushort)GetScanCode(wParam, lParam);
+        keyEvent.IsExtended = IsExtendedKey(lParam);
+        keyEvent.IsSystem = message == WM_SYSKEYDOWN || message == WM_SYSKEYUP;
+        keyEvent.Repeat = ((ushort)lParam) & 0x7FFF;
+        keyEvent.Handled = false;
 
         // Only keep track of toggle state for the following keys
         if (virtualKey == VK.VK_CAPITAL || virtualKey == VK.VK_SCROLL || virtualKey == VK.VK_NUMLOCK)
         {
             if ((GetKeyState(virtualKey) & 1) != 0)
             {
-                keyEvent.Keyboard.State |= KeyStates.Toggled;
+                keyEvent.State |= KeyStates.Toggled;
             }
         }
 
-        OnWindowEvent(ref keyEvent);
+        OnWindowEvent(keyEvent);
 
-        return keyEvent.Keyboard.Handled ? 0 : -1;
+        return keyEvent.Handled ? 0 : -1;
     }
 
     internal static int GetVirtualKey(WPARAM wParam, LPARAM lParam)
@@ -727,9 +728,9 @@ internal unsafe class Win32Window : Window
     
     private void HandleClose()
     {
-        var closeEvent = new WindowEvent(WindowEventKind.Close);
-        OnWindowEvent(ref closeEvent);
-        if (!closeEvent.Close.Cancel)
+        _closeEvent.Cancel = false;
+        OnWindowEvent(_closeEvent);
+        if (!_closeEvent.Cancel)
         {
             _closed = true;
             DestroyWindow(HWnd);
@@ -989,14 +990,15 @@ internal unsafe class Win32Window : Window
                          GetSystemMetrics(SM.SM_CXPADDEDBORDER);
 
         // In a borderless Delegate the detection of the bar to the event handler
-        var hitTestEvent = new WindowEvent(WindowEventKind.HitTest);
-        hitTestEvent.HitTest.WindowSize = WindowHelper.PixelToLogical(new Size(rcWindow.right - rcWindow.left, rcWindow.bottom - rcWindow.top), CurrentDpi);
-        hitTestEvent.HitTest.MousePosition = ScreenToClient(new Point(ptMouse.x, ptMouse.y));
+        var hitTestEvent = _hitTestEvent;
+        hitTestEvent.Handled = false;
+        hitTestEvent.WindowSize = WindowHelper.PixelToLogical(new Size(rcWindow.right - rcWindow.left, rcWindow.bottom - rcWindow.top), CurrentDpi);
+        hitTestEvent.MousePosition = ScreenToClient(new Point(ptMouse.x, ptMouse.y));
 
-        OnWindowEvent(ref hitTestEvent);
-        if (hitTestEvent.HitTest.Handled)
+        OnWindowEvent(hitTestEvent);
+        if (hitTestEvent.Handled)
         {
-            switch (hitTestEvent.HitTest.Result)
+            switch (hitTestEvent.Result)
             {
                 case HitTest.None:
                     return HTNOWHERE;
@@ -1191,10 +1193,13 @@ internal unsafe class Win32Window : Window
 
     internal LRESULT HandleMouse(HWND hWnd, uint message, WPARAM wParam, LPARAM lParam)
     {
-        var localEvent = new WindowEvent(WindowEventKind.Mouse);
-        ref var mouse = ref localEvent.Cast<MouseEvent>();
+        var mouse = _mouseEvent;
+        mouse.Button = MouseButtonFlags.None;
+        mouse.Pressed = MouseButtonFlags.None;
+        mouse.Position = default;
+        mouse.WheelDelta = default;
 
-        SetMouseButtonStates(wParam, ref mouse);
+        SetMouseButtonStates(wParam, mouse);
 
         var pixelPositionX = GET_X_LPARAM(lParam);
         var pixelPositionY = GET_Y_LPARAM(lParam);
@@ -1215,7 +1220,7 @@ internal unsafe class Win32Window : Window
             {
                 // Send a mouse enter
                 mouse.SubKind = MouseEventKind.Enter;
-                OnWindowEvent(ref localEvent);
+                OnWindowEvent(mouse);
             }
             _mouseLastX = -1.0f;
             _mouseLastY = -1.0f;
@@ -1229,7 +1234,7 @@ internal unsafe class Win32Window : Window
             mouse.SubKind = MouseEventKind.Leave;
             mouse.Position.X = _mouseLastX;
             mouse.Position.Y = _mouseLastY;
-            OnWindowEvent(ref localEvent);
+            OnWindowEvent(mouse);
             _mouseLastX = -1.0f;
             _mouseLastY = -1.0f;
             return 0;
@@ -1314,11 +1319,11 @@ internal unsafe class Win32Window : Window
         // Notify the mouse event
         _mouseLastX = mouse.Position.X;
         _mouseLastY = mouse.Position.Y;
-        OnWindowEvent(ref localEvent);
+        OnWindowEvent(mouse);
 
         return 0;
 
-        static void SetMouseButtonStates(WPARAM wParam, ref MouseEvent evt)
+        static void SetMouseButtonStates(WPARAM wParam, MouseEvent evt)
         {
             // Gets the buttons clicked
             if ((wParam & MK_LBUTTON) != 0)

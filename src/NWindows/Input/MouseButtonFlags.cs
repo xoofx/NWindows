@@ -4,7 +4,7 @@
 
 using System;
 
-namespace NWindows;
+namespace NWindows.Input;
 
 [Flags]
 public enum MouseButtonFlags

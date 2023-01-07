@@ -3,6 +3,7 @@
 // See license.txt file in the project root for full license information.
 
 using System.Drawing;
+using NWindows.Events;
 using NWindows.Input;
 using NWindows.Threading;
 
@@ -88,7 +89,7 @@ public class AppProgram
     private Point deltaMousePosition;
     private Window? _mainWindow;
 
-    private void WindowEventDelegate(Window window, ref WindowEvent evt)
+    private void WindowEventDelegate(Window window, WindowEvent evt)
     {
         LogEvent(evt);
         if (evt.Kind == WindowEventKind.System)
@@ -97,7 +98,7 @@ public class AppProgram
         }
         else if (evt.Kind == WindowEventKind.Mouse)
         {
-            ref var mouseEvt = ref evt.Cast<MouseEvent>();
+            var mouseEvt = (MouseEvent)evt;
             var mousePositionOnScreen = window.ClientToScreen(mouseEvt.Position);
             if ((mouseEvt.Button & MouseButtonFlags.LeftButton) != 0)
             {
@@ -145,7 +146,7 @@ public class AppProgram
         }
         else if (evt.Kind == WindowEventKind.HitTest)
         {
-            ref var barHitTestEvent = ref evt.Cast<HitTestEvent>();
+            var barHitTestEvent = (HitTestEvent)evt;
             if (barHitTestEvent.MousePosition.Y < 20)
             {
                 barHitTestEvent.Result = HitTest.Caption;
@@ -154,7 +155,7 @@ public class AppProgram
         }
         else if (evt.Kind == WindowEventKind.Keyboard)
         {
-            ref var keyboardEvent = ref evt.Cast<KeyboardEvent>();
+            var keyboardEvent = (KeyboardEvent)evt;
             if (keyboardEvent.IsUp && window.TopLevel)
             {
                 switch (keyboardEvent.Key)

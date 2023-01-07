@@ -10,7 +10,7 @@ namespace NWindows;
 /// <summary>
 /// Options for creating a window.
 /// </summary>
-public class WindowCreateOptions
+public record WindowCreateOptions
 {
     /// <summary>
     /// Sets a kind of window. Default is <see cref="WindowKind.TopLevel"/>
