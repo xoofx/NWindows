@@ -5,7 +5,6 @@
 using System;
 using System.Drawing;
 using NWindows.Threading;
-using TerraFX.Interop.Windows;
 
 namespace NWindows;
 
@@ -101,12 +100,12 @@ public abstract class Window : DispatcherObject
         VerifyPopup();
 
         var frame = new ModalFrame(Dispatcher, this);
-        WindowEventHub.CloseEventHandler stopFrame = (Window window, ref CloseEvent evt) =>
+        WindowEventHub.FrameEventHandler destroyFrame = (Window window, ref FrameEvent evt) =>
         {
-            frame.Continue = false;
+            frame.Continue = evt.SubKind != FrameEventKind.Destroyed;
         };
 
-        Events.Close += stopFrame;
+        Events.Frame += destroyFrame;
         try
         {
             // Block until this window is closed
@@ -114,7 +113,7 @@ public abstract class Window : DispatcherObject
         }
         finally
         {
-            Events.Close -= stopFrame;
+            Events.Frame -= destroyFrame;
         }
     }
 
