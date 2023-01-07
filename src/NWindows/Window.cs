@@ -9,28 +9,9 @@ using NWindows.Threading;
 
 namespace NWindows;
 
-// Missing options:
-// - DefaultSize (in options)
-// - WindowStartPosition (e.g Default, CenterParent, CenterScreen)
-//
-// Missing properties:
-//
-// - DesktopBounds (Gets or sets the size and location of the form on the Windows desktop.)
-// - DesktopLocation (Gets or sets the location of the form on the Windows desktop )
-// - TransparencyKey
-//
-// Missing methods:
-// - CenterToParent
-// - CenterToScreen
-//
-// Missing events:
-// - ResizeBegin / ResizeEnd
-//
-// 
-
 public abstract class Window : DispatcherObject
 {
-    // The following events are cached per Window to avoid to many allocations
+    // The following events are cached per Window to avoid allocations
     // ReSharper disable InconsistentNaming
     internal readonly CloseEvent _closeEvent;
     internal readonly FrameEvent _frameEvent;
@@ -111,6 +92,28 @@ public abstract class Window : DispatcherObject
 
     public abstract Screen? GetScreen();
 
+    public void CenterToParent()
+    {
+        var parent = Parent;
+        if (parent != null && !parent.Size.IsEmpty)
+        {
+            CenterPositionFromBounds(parent.Position, parent.Size);
+        }
+        else
+        {
+            CenterToScreen();
+        }
+    }
+
+    public void CenterToScreen()
+    {
+        var screen = GetScreen();
+        if (screen != null)
+        {
+            CenterPositionFromBounds(screen.Position, screen.Size);
+        }
+    }
+
     public void ShowDialog()
     {
         VerifyAccess();
@@ -177,6 +180,32 @@ public abstract class Window : DispatcherObject
         _paintEvent.Bounds = bounds;
         OnWindowEvent(_paintEvent);
         return _paintEvent.Handled;
+    }
+
+    private void CenterPositionFromBounds(Point position, SizeF size)
+    {
+        var currentSize = Size;
+        if (currentSize.IsEmpty) return;
+
+        var dpi = Dpi;
+        bool changed = false;
+        var currentPosition = Position;
+        if (currentSize.Width <= size.Width)
+        {
+            currentPosition.X = position.X + WindowHelper.LogicalToPixel((size.Width - currentSize.Width) / 2, dpi.X);
+            changed = true;
+        }
+
+        if (currentSize.Height <= size.Height)
+        {
+            currentPosition.Y = position.Y + WindowHelper.LogicalToPixel((size.Height - currentSize.Height) / 2, dpi.Y);
+            changed = true;
+        }
+
+        if (changed)
+        {
+            Position = currentPosition;
+        }
     }
 
     private sealed class ModalFrame : DispatcherFrame

@@ -45,7 +45,7 @@ public abstract partial class Dispatcher
     /// <summary>
     /// The writer used to log debug messages
     /// </summary>
-    internal TextWriter? DebugOutputInternal;
+    internal Action<string?>? DebugOutputInternal;
 
     protected Dispatcher(Thread thread)
     {
@@ -65,6 +65,8 @@ public abstract partial class Dispatcher
         _tlsCurrentDispatcher = this;
 
         Events = new DispatcherEventHub(this);
+
+        DebugOutputInternal = Console.Out.WriteLine;
     }
 
     /// <summary>
@@ -154,7 +156,7 @@ public abstract partial class Dispatcher
         }
     }
 
-    public TextWriter? DebugOutput
+    public Action<string?>? DebugOutput
     {
         get
         {

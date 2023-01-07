@@ -1819,16 +1819,10 @@ internal unsafe class Win32Window : Window
                 switch (options.StartPosition)
                 {
                     case WindowStartPosition.CenterParent:
-                        var parent = Parent;
-                        if (parent != null)
-                        {
-                            CenterPositionFromBounds(parent.Position, parent.Size);
-                            break;
-                        }
-
-                        goto case WindowStartPosition.CenterScreen;
+                        CenterToParent();
+                        break;
                     case WindowStartPosition.CenterScreen:
-                        CenterPositionFromBounds(new Point(0, 0), screen.Size);
+                        CenterToScreen();
                         break;
                 }
             }
@@ -1840,31 +1834,6 @@ internal unsafe class Win32Window : Window
                 UpdateWindow(HWnd);
                 _visible = options.Visible;
             }
-        }
-    }
-
-    private void CenterPositionFromBounds(Point position, SizeF size)
-    {
-        if (_size.IsEmpty) return;
-
-        bool changed = false;
-        var currentPosition = _position;
-        var currentSize = _size;
-        if (currentSize.Width <= size.Width)
-        {
-            currentPosition.X = position.X + WindowHelper.LogicalToPixel((size.Width - currentSize.Width) / 2, _dpi.X);
-            changed = true;
-        }
-
-        if (currentSize.Height <= size.Height)
-        {
-            currentPosition.Y = position.Y + WindowHelper.LogicalToPixel((size.Height - currentSize.Height) / 2, _dpi.Y);
-            changed = true;
-        }
-
-        if (changed)
-        {
-            Position = currentPosition;
         }
     }
 

@@ -37,7 +37,6 @@ internal unsafe class Win32Dispatcher : Dispatcher
 
     private readonly uint _uxdDisplayChangeMessage;
     private readonly uint _hotplugDetected;
-    private int _runMessageLoop;
     private readonly uint WM_DISPATCHER_QUEUE;
     private readonly SystemEvent _systemEvent;
 
@@ -255,12 +254,12 @@ internal unsafe class Win32Dispatcher : Dispatcher
         try
         {
             // Output debug messages if requested
-            if (DebugInternal && DebugOutput is { } debugOutput)
+            if (DebugInternal && DebugOutputInternal is { } debugOutput)
             {
                 var newMessage = new WndMsg(hWnd, message, wParam, lParam);
                 if (_previousMessage != newMessage || message == WM_TIMER)
                 {
-                    debugOutput.WriteLine(newMessage);
+                    debugOutput(newMessage.ToString());
                     _previousMessage = newMessage;
                 }
             }
