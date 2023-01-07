@@ -199,12 +199,15 @@ internal unsafe class Win32Dispatcher : Dispatcher
         LRESULT result = -1;
         try
         {
-            // Log message that are only different
-            var newMessage = new WndMsg(hWnd, message, wParam, lParam);
-            if (_previousMessage != newMessage || message == WM_TIMER)
+            // Output debug messages if requested
+            if (DebugInternal && DebugOutput is {} debugOutput)
             {
-                Win32Helper.OutputDebugWinProc(newMessage);
-                _previousMessage = newMessage;
+                var newMessage = new WndMsg(hWnd, message, wParam, lParam);
+                if (_previousMessage != newMessage || message == WM_TIMER)
+                {
+                    debugOutput.WriteLine(newMessage);
+                    _previousMessage = newMessage;
+                }
             }
 
             if (hWnd == Hwnd)

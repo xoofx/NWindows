@@ -25,11 +25,6 @@ internal static class Win32VirtualKeys
 
 internal static class Win32Helper
 {
-    public static void OutputDebugWinProc(in WndMsg msg, string? context = null)
-    {
-        Console.Out.WriteLine(context is null ? msg.ToString() : $"{context}{msg}");
-    }
-
     public static Color ToColor(COLORREF colorRef)
     {
         return Color.FromArgb(GetRValue(colorRef), GetGValue(colorRef), GetBValue(colorRef));

@@ -25,8 +25,10 @@ namespace NWindows;
 // - CenterToScreen
 //
 // Missing events:
-// - DpiChanged?
+// - DpiChanged: See https://learn.microsoft.com/en-us/windows/win32/hidpi/high-dpi-desktop-application-development-on-windows
 // - ResizeBegin / ResizeEnd
+//
+// 
 
 public abstract class Window : DispatcherObject
 {

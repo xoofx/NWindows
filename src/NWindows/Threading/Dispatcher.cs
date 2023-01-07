@@ -7,6 +7,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
+using System.IO;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using NWindows.Input;
@@ -42,6 +43,16 @@ public abstract partial class Dispatcher
 
     // internal list storing all dispatchers
     private static readonly List<WeakReference<Dispatcher>> Dispatchers = new();
+
+    /// <summary>
+    /// Set to true to allow per platform debugging
+    /// </summary>
+    internal bool DebugInternal;
+
+    /// <summary>
+    /// The writer used to log debug messages
+    /// </summary>
+    internal TextWriter? DebugOutputInternal;
 
     protected Dispatcher(Thread thread)
     {
@@ -167,6 +178,34 @@ public abstract partial class Dispatcher
         {
             VerifyAccess();
             _idleHandler -= value;
+        }
+    }
+    
+    public bool EnableDebug
+    {
+        get
+        {
+            VerifyAccess();
+            return DebugInternal;
+        }
+        set
+        {
+            VerifyAccess();
+            DebugInternal = value;
+        }
+    }
+
+    public TextWriter? DebugOutput
+    {
+        get
+        {
+            VerifyAccess();
+            return DebugOutputInternal;
+        }
+        set
+        {
+            VerifyAccess();
+            DebugOutputInternal = value;
         }
     }
 
