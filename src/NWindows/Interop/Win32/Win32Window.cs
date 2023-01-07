@@ -6,6 +6,8 @@ using System;
 using System.Drawing;
 using System.Runtime.InteropServices;
 using System.Text;
+using NWindows.Events;
+using NWindows.Input;
 using TerraFX.Interop.Windows;
 using static TerraFX.Interop.Windows.WS;
 using static TerraFX.Interop.Windows.HWND;
@@ -13,10 +15,8 @@ using static TerraFX.Interop.Windows.MK;
 using static TerraFX.Interop.Windows.Windows;
 using static TerraFX.Interop.Windows.WM;
 using static TerraFX.Interop.Windows.TME;
-using NWindows.Input;
-using NWindows.Events;
 
-namespace NWindows.Win32;
+namespace NWindows.Interop.Win32;
 
 // Check about hittest https://github.com/microsoft/terminal/blob/547349af77df16d0eed1c73ba3041c84f7b063da/src/cascadia/WindowsTerminal/NonClientIslandWindow.cpp
 
@@ -84,7 +84,7 @@ internal unsafe class Win32Window : Window
         CreateWindowHandle(options);
     }
 
-    public new Win32Dispatcher  Dispatcher => (Win32Dispatcher)base.Dispatcher;
+    public new Win32Dispatcher Dispatcher => (Win32Dispatcher)base.Dispatcher;
 
     public HWND HWnd => (HWND)Handle;
 
@@ -284,7 +284,7 @@ internal unsafe class Win32Window : Window
             }
         }
     }
-    
+
     public override bool TopMost
     {
         get
@@ -406,7 +406,7 @@ internal unsafe class Win32Window : Window
         SendMessage(HWnd, WM_CLOSE, (WPARAM)0, (LPARAM)0);
         return _closed;
     }
-    
+
     public override Point ClientToScreen(PointF position)
     {
         VerifyAccessAndNotDestroyed();
@@ -469,8 +469,8 @@ internal unsafe class Win32Window : Window
         {
             Dispatcher.OnSystemEvent(SystemEventKind.ScreenChanged);
         }
-        
-        if ((message >= WM_MOUSEFIRST && message <= WM_MOUSELAST) || message == WM_MOUSELEAVE)
+
+        if (message >= WM_MOUSEFIRST && message <= WM_MOUSELAST || message == WM_MOUSELEAVE)
         {
             return HandleMouse(hWnd, message, wParam, lParam);
         }
@@ -486,7 +486,7 @@ internal unsafe class Win32Window : Window
         }
 
         result = -1;
-        
+
         switch (message)
         {
             case WM_NCDESTROY:
@@ -547,7 +547,7 @@ internal unsafe class Win32Window : Window
                 OnFrameEvent(_enable ? FrameEventKind.Enabled : FrameEventKind.Disabled);
                 result = 0;
                 break;
-                
+
             case WM_ERASEBKGND:
                 // Do nothing on erase background
                 // TODO: Check if we need to handle this
@@ -632,7 +632,7 @@ internal unsafe class Win32Window : Window
         keyEvent.ScanCode = (ushort)GetScanCode(wParam, lParam);
         keyEvent.IsExtended = IsExtendedKey(lParam);
         keyEvent.IsSystem = message == WM_SYSKEYDOWN || message == WM_SYSKEYUP;
-        keyEvent.Repeat = ((ushort)lParam) & 0x7FFF;
+        keyEvent.Repeat = (ushort)lParam & 0x7FFF;
         keyEvent.Handled = false;
 
         // Only keep track of toggle state for the following keys
@@ -668,7 +668,7 @@ internal unsafe class Win32Window : Window
         // Find the left/right instance ALT keys.
         if (virtualKey == VK.VK_MENU)
         {
-            bool right = ((keyData & 0x1000000) >> 24) != 0;
+            bool right = (keyData & 0x1000000) >> 24 != 0;
 
             if (right)
             {
@@ -683,7 +683,7 @@ internal unsafe class Win32Window : Window
         // Find the left/right instance CONTROL keys.
         if (virtualKey == VK.VK_CONTROL)
         {
-            bool right = ((keyData & 0x1000000) >> 24) != 0;
+            bool right = (keyData & 0x1000000) >> 24 != 0;
 
             if (right)
             {
@@ -715,7 +715,7 @@ internal unsafe class Win32Window : Window
     internal static bool IsExtendedKey(LPARAM lParam)
     {
         int keyData = (int)lParam;
-        return ((keyData & 0x01000000) != 0) ? true : false;
+        return (keyData & 0x01000000) != 0 ? true : false;
     }
 
     private void HandleDispose()
@@ -725,7 +725,7 @@ internal unsafe class Win32Window : Window
         _thisGcHandle = default;
         Handle = default;
     }
-    
+
     private void HandleClose()
     {
         _closeEvent.Cancel = false;
@@ -757,7 +757,7 @@ internal unsafe class Win32Window : Window
         }
         OnFrameEvent(FrameEventKind.Destroyed);
     }
-    
+
     private LRESULT HandleBorderLessWindowProc(HWND hWnd, uint message, WPARAM wParam, LPARAM lParam)
     {
         // Tried to use some of the tips from:
@@ -826,7 +826,7 @@ internal unsafe class Win32Window : Window
         {
             if (!_minimumSize.IsEmpty)
             {
-                *((Size*)&info->ptMinTrackSize) = WindowHelper.LogicalToPixel(_minimumSize, CurrentDpi);
+                *(Size*)&info->ptMinTrackSize = WindowHelper.LogicalToPixel(_minimumSize, CurrentDpi);
 
                 // When the MinTrackSize is set to a value larger than the screen
                 // size but the MaxTrackSize is not set to a value equal to or greater than the
@@ -858,7 +858,7 @@ internal unsafe class Win32Window : Window
             {
                 var size = WindowHelper.LogicalToPixel(_maximumSize, CurrentDpi);
                 // TODO: Max on SystemInformation.MinWindowTrackSize
-                *((Size*)&info->ptMaxTrackSize) = size;
+                *(Size*)&info->ptMaxTrackSize = size;
             }
 
             // TODO: set MaxSize/MaxPosition
@@ -890,7 +890,8 @@ internal unsafe class Win32Window : Window
         DwmIsCompositionEnabled(&enabled);
         _isCompositionEnabled = enabled;
 
-        if (_isCompositionEnabled && !_hasDecorations) {
+        if (_isCompositionEnabled && !_hasDecorations)
+        {
             // The window needs a frame to show a shadow, so give it the smallest amount of frame possible
             MARGINS margins = default;
             margins.cyTopHeight = 1;
@@ -915,7 +916,7 @@ internal unsafe class Win32Window : Window
         // DefWindowProc must be called in both the maximized and non - maximized cases, otherwise tile/ cascade windows won't work 
         DefWindowProcW(HWnd, WM_NCCALCSIZE, wParam, (LPARAM)pnCsp);
         var client = rect;
-        
+
         if (IsMaximized(HWnd))
         {
             WINDOWINFO wi = default;
@@ -944,7 +945,8 @@ internal unsafe class Win32Window : Window
                    one pixel on a certain edge. The edge is chosen based on which side
                    of the monitor is likely to contain an auto-hide appbar, so the
                    missing client area is covered by it. */
-                if (rect.Equals(mi.rcMonitor)) {
+                if (rect.Equals(mi.rcMonitor))
+                {
                     if (HasAutoHideAppBar(ABE_BOTTOM, mi.rcMonitor))
                         rect.bottom--;
                     else if (HasAutoHideAppBar(ABE_LEFT, mi.rcMonitor))
@@ -980,7 +982,7 @@ internal unsafe class Win32Window : Window
         }
 
         // Mouse with screen coordinates
-        POINT ptMouse = new POINT(){ x = GET_X_LPARAM(lParam), y = GET_Y_LPARAM(lParam) };
+        POINT ptMouse = new POINT() { x = GET_X_LPARAM(lParam), y = GET_Y_LPARAM(lParam) };
 
         // Get the window rectangle.
         RECT rcWindow;
@@ -1206,7 +1208,7 @@ internal unsafe class Win32Window : Window
 
         mouse.Position = WindowHelper.PixelToLogical(new Point(pixelPositionX, pixelPositionY), CurrentDpi);
 
-        if ((message == WM_MOUSEMOVE) && !_mouseTracked)
+        if (message == WM_MOUSEMOVE && !_mouseTracked)
         {
             TRACKMOUSEEVENT trackMouseEvent;
             trackMouseEvent.cbSize = (uint)sizeof(TRACKMOUSEEVENT);
@@ -1439,7 +1441,7 @@ internal unsafe class Win32Window : Window
         _resizeable = value;
         OnFrameEvent(FrameEventKind.ResizeableChanged);
     }
-    
+
     private void UpdateMaximizeable(bool value)
     {
         var style = GetWindowStyle(HWnd);
@@ -1449,13 +1451,13 @@ internal unsafe class Win32Window : Window
         }
         else
         {
-            style &= ~(uint)(WS_MAXIMIZEBOX);
+            style &= ~(uint)WS_MAXIMIZEBOX;
         }
         SetWindowLongPtr(HWnd, GWL.GWL_STYLE, (nint)style);
         InvalidateRect(HWnd, null, false);
         UpdateWindow(HWnd);
 
-        _maximizeable= value;
+        _maximizeable = value;
         OnFrameEvent(FrameEventKind.MaximizeableChanged);
     }
 
@@ -1468,7 +1470,7 @@ internal unsafe class Win32Window : Window
         }
         else
         {
-            style &= ~(uint)(WS_MINIMIZEBOX);
+            style &= ~(uint)WS_MINIMIZEBOX;
         }
         SetWindowLongPtr(HWnd, GWL.GWL_STYLE, (nint)style);
         InvalidateRect(HWnd, null, false);
@@ -1512,7 +1514,7 @@ internal unsafe class Win32Window : Window
         var exStyle = GetWindowExStyle(HWnd);
         if (hasOpacity)
         {
-            exStyle |= ((uint)WS_EX_LAYERED);
+            exStyle |= WS_EX_LAYERED;
             SetWindowLongPtr(HWnd, GWL.GWL_EXSTYLE, (nint)exStyle);
             var fixedValue = (byte)(value * 255);
             if (fixedValue == 0)
@@ -1526,7 +1528,7 @@ internal unsafe class Win32Window : Window
         else
         {
             SetLayeredWindowAttributes(HWnd, new COLORREF(), 255, LWA.LWA_ALPHA);
-            exStyle &= ~((uint)WS_EX_LAYERED);
+            exStyle &= ~(uint)WS_EX_LAYERED;
             SetWindowLongPtr(HWnd, GWL.GWL_EXSTYLE, (nint)exStyle);
             InvalidateRect(HWnd, null, false);
             UpdateWindow(HWnd);
@@ -1538,7 +1540,7 @@ internal unsafe class Win32Window : Window
 
     private void UpdateTopMost(bool value)
     {
-        SetWindowPos(HWnd, value ? HWND.HWND_TOPMOST : HWND.HWND_NOTOPMOST, 0, 0, 0, 0, SWP.SWP_NOMOVE | SWP.SWP_NOSIZE);
+        SetWindowPos(HWnd, value ? HWND_TOPMOST : HWND_NOTOPMOST, 0, 0, 0, 0, SWP.SWP_NOMOVE | SWP.SWP_NOSIZE);
         _topMost = value;
         OnFrameEvent(FrameEventKind.TopMostChanged);
     }
@@ -1636,7 +1638,7 @@ internal unsafe class Win32Window : Window
         }
         else
         {
-            exStyle &= ~(uint)(WS_EX_APPWINDOW);
+            exStyle &= ~(uint)WS_EX_APPWINDOW;
         }
 
         // For some reason, if the window was created without the WS_EX_APPWINDOW
@@ -1818,7 +1820,7 @@ internal unsafe class Win32Window : Window
 
     private void VerifyAccessAndNotDestroyed()
     {
-        base.VerifyAccess();
+        VerifyAccess();
         if (_disposed)
         {
             throw new InvalidOperationException("This window has been closed and destroyed.");

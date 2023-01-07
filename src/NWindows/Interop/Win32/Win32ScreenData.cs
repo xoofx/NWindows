@@ -6,7 +6,7 @@ using System;
 using System.Drawing;
 using TerraFX.Interop.Windows;
 
-namespace NWindows.Win32;
+namespace NWindows.Interop.Win32;
 
 internal readonly struct Win32ScreenData : IEquatable<Win32ScreenData>
 {

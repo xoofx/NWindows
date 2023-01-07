@@ -2,13 +2,12 @@
 // Licensed under the BSD-Clause 2 license.
 // See license.txt file in the project root for full license information.
 
-using System;
 using System.Drawing;
 using TerraFX.Interop.Windows;
 using static TerraFX.Interop.Windows.WM;
 using static TerraFX.Interop.Windows.Windows;
 
-namespace NWindows.Win32;
+namespace NWindows.Interop.Win32;
 
 
 internal readonly record struct WndMsg(HWND HWnd, uint Message, WPARAM WParam, LPARAM LParam)
@@ -306,6 +305,6 @@ internal static class Win32Helper
         const int capacity = 256;
         var localChars = stackalloc char[capacity];
         var length = GetClipboardFormatNameW(message, (ushort*)localChars, capacity);
-        return length <= 0 ? (message <= ushort.MaxValue ? $"0x{message:x8}" : $"0x{message:x16}") : new string(localChars, 0, length);
+        return length <= 0 ? message <= ushort.MaxValue ? $"0x{message:x8}" : $"0x{message:x16}" : new string(localChars, 0, length);
     }
 }

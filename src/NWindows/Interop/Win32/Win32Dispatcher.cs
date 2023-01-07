@@ -18,7 +18,7 @@ using static TerraFX.Interop.Windows.PM;
 using static TerraFX.Interop.Windows.Windows;
 using static TerraFX.Interop.Windows.WM;
 
-namespace NWindows.Win32;
+namespace NWindows.Interop.Win32;
 
 /// <summary>
 /// Implementation of the Dispatcher for Windows.
@@ -61,7 +61,7 @@ internal unsafe class Win32Dispatcher : Dispatcher
                 style = CS_DBLCLKS | CS_HREDRAW | CS_VREDRAW,
                 lpfnWndProc = &StaticWindowProc,
                 hInstance = Win32Shared.ModuleHandle,
-                hCursor = LoadCursorW(HINSTANCE.NULL, (ushort*)IDC_ARROW),
+                hCursor = LoadCursorW(HINSTANCE.NULL, IDC_ARROW),
                 hbrBackground = (HBRUSH)(COLOR.COLOR_WINDOW + 1), // Default background color, we should not change this but change it in the Window Create options
                 lpszClassName = (ushort*)lpszClassName
             };
@@ -76,12 +76,12 @@ internal unsafe class Win32Dispatcher : Dispatcher
 
         fixed (char* lpszClassName = "UxdDisplayChangeMessage")
         {
-            _uxdDisplayChangeMessage = Windows.RegisterWindowMessageW((ushort*)lpszClassName);
+            _uxdDisplayChangeMessage = RegisterWindowMessageW((ushort*)lpszClassName);
         }
 
         fixed (char* lpszClassName = "HotplugDetected")
         {
-            _hotplugDetected = Windows.RegisterWindowMessageW((ushort*)lpszClassName);
+            _hotplugDetected = RegisterWindowMessageW((ushort*)lpszClassName);
         }
 
         ScreenManager = new Win32ScreenManager();
@@ -101,8 +101,8 @@ internal unsafe class Win32Dispatcher : Dispatcher
     }
 
     public ushort ClassAtom { get; }
-    
-    private new static Win32Dispatcher Current => (Win32Dispatcher)(Dispatcher.Current);
+
+    private new static Win32Dispatcher Current => (Win32Dispatcher)Dispatcher.Current;
 
     internal override Win32ScreenManager ScreenManager { get; }
 
@@ -136,7 +136,7 @@ internal unsafe class Win32Dispatcher : Dispatcher
 
     internal override void NotifyJobQueue()
     {
-        PostMessage(Hwnd, (uint)WM_DISPATCHER_QUEUE, 0, 0);
+        PostMessage(Hwnd, WM_DISPATCHER_QUEUE, 0, 0);
     }
 
     internal override void PostQuitToMessageLoop()
@@ -161,16 +161,16 @@ internal unsafe class Win32Dispatcher : Dispatcher
     {
         return _mapHandleToWindow.TryGetValue(handle, out window);
     }
-    
+
     internal bool TryHandleScreenChanges(HWND hWnd, uint message, WPARAM wParam, LPARAM lParam)
     {
         // https://stackoverflow.com/a/33762334/1356325
         bool updateScreens = false;
         switch (message)
         {
-            case WM.WM_DEVICECHANGE:
-            case WM.WM_SETTINGCHANGE:
-            case WM.WM_DISPLAYCHANGE:
+            case WM_DEVICECHANGE:
+            case WM_SETTINGCHANGE:
+            case WM_DISPLAYCHANGE:
                 updateScreens = true;
                 break;
             default:
@@ -203,7 +203,7 @@ internal unsafe class Win32Dispatcher : Dispatcher
         try
         {
             // Output debug messages if requested
-            if (DebugInternal && DebugOutput is {} debugOutput)
+            if (DebugInternal && DebugOutput is { } debugOutput)
             {
                 var newMessage = new WndMsg(hWnd, message, wParam, lParam);
                 if (_previousMessage != newMessage || message == WM_TIMER)
@@ -253,25 +253,25 @@ internal unsafe class Win32Dispatcher : Dispatcher
                         break;
 
                     case WM_DESTROY:
-                    {
-                        result = winWindow.WindowProc(hWnd, message, wParam, lParam);
-                        UnRegisterWindow(winWindow);
-
-                        // If we don't have anymore windows running, then we shutdown the loop
-                        // TODO: We might want to change this default behavior and so make it more pluggable
-                        if (_windows.Count == 0)
                         {
-                            Shutdown();
+                            result = winWindow.WindowProc(hWnd, message, wParam, lParam);
+                            UnRegisterWindow(winWindow);
+
+                            // If we don't have anymore windows running, then we shutdown the loop
+                            // TODO: We might want to change this default behavior and so make it more pluggable
+                            if (_windows.Count == 0)
+                            {
+                                Shutdown();
+                            }
+                            result = 0;
                         }
-                        result = 0;
-                    }
                         break;
 
                     default:
-                    {
-                        result = winWindow.WindowProc(hWnd, message, wParam, lParam);
-                        break;
-                    }
+                        {
+                            result = winWindow.WindowProc(hWnd, message, wParam, lParam);
+                            break;
+                        }
                 }
             }
         }

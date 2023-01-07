@@ -3,11 +3,10 @@
 // See license.txt file in the project root for full license information.
 
 using NWindows.Input;
-using TerraFX.Interop.Windows;
 using static TerraFX.Interop.Windows.Windows;
 using static TerraFX.Interop.Windows.VK;
 
-namespace NWindows.Win32;
+namespace NWindows.Interop.Win32;
 
 internal static class Win32KeyInterop
 {

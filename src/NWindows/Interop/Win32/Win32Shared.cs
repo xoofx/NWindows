@@ -5,7 +5,7 @@
 using TerraFX.Interop.Windows;
 using static TerraFX.Interop.Windows.Windows;
 
-namespace NWindows.Win32;
+namespace NWindows.Interop.Win32;
 
 internal static unsafe class Win32Shared
 {

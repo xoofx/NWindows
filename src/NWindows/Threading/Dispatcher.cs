@@ -10,10 +10,8 @@ using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Runtime.CompilerServices;
 using System.Threading;
-using NWindows.Events;
 using NWindows.Input;
 using NWindows.Threading.Events;
-using NWindows.Win32;
 
 namespace NWindows.Threading;
 
@@ -127,7 +125,7 @@ public abstract partial class Dispatcher
     {
         if (OperatingSystem.IsWindows())
         {
-            return new Win32Dispatcher(thread);
+            return new Interop.Win32.Win32Dispatcher(thread);
         }
 
         throw new PlatformNotSupportedException();

@@ -9,7 +9,7 @@ using System.Drawing;
 using System.Runtime.InteropServices;
 using TerraFX.Interop.Windows;
 
-namespace NWindows.Win32;
+namespace NWindows.Interop.Win32;
 
 internal sealed unsafe class Win32ScreenManager : IScreenManager
 {
@@ -61,7 +61,7 @@ internal sealed unsafe class Win32ScreenManager : IScreenManager
         var updated = _screenAddedOrUpdated;
 
         var primaryScreen = _primaryScreen;
-        
+
         foreach (var screen in _tempCollectScreens)
         {
             if (screen.IsPrimary)
@@ -78,7 +78,7 @@ internal sealed unsafe class Win32ScreenManager : IScreenManager
 
         if (_tempCollectScreens.Count == 0)
         {
-            if (primaryScreen is {})
+            if (primaryScreen is { })
             {
                 primaryScreen = null;
                 updated = true;
@@ -118,7 +118,7 @@ internal sealed unsafe class Win32ScreenManager : IScreenManager
             // TODO: avoid the ToArray
             _items = _tempCollectScreens.ToArray();
         }
-        
+
         return updated;
     }
 

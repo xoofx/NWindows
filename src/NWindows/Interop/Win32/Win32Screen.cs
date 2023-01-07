@@ -5,7 +5,7 @@
 using System.Drawing;
 using TerraFX.Interop.Windows;
 
-namespace NWindows.Win32;
+namespace NWindows.Interop.Win32;
 
 internal sealed class Win32Screen : Screen
 {
@@ -55,7 +55,8 @@ internal sealed class Win32Screen : Screen
 
     public override SizeF Size
     {
-        get {
+        get
+        {
             VerifyAccess();
             return InternalData.Size;
         }

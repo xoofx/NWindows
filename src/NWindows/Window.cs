@@ -141,7 +141,7 @@ public abstract class Window : DispatcherObject
 
         if (OperatingSystem.IsWindows())
         {
-            return new Win32.Win32Window(options);
+            return new Interop.Win32.Win32Window(options);
         }
 
         throw new PlatformNotSupportedException();

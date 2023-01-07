@@ -5,7 +5,7 @@
 using NWindows.Input;
 using TerraFX.Interop.Windows;
 
-namespace NWindows.Win32;
+namespace NWindows.Interop.Win32;
 
 internal class Win32KeyboardDevice : KeyboardDevice
 {
