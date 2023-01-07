@@ -34,10 +34,15 @@ public static class WindowEventExtension
     {
         return kind switch
         {
-            WindowEventKind.Application => "application",
+            WindowEventKind.Idle => "idle",
+            WindowEventKind.System => "system",
             WindowEventKind.Frame => "control",
+            WindowEventKind.Paint => "paint",
+            WindowEventKind.HitTest => "hittest",
             WindowEventKind.Keyboard => "keyboard",
             WindowEventKind.Mouse => "mouse",
+            WindowEventKind.Close => "close",
+            WindowEventKind.Text => "text",
             _ => "undefined"
         };
     }

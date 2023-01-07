@@ -10,16 +10,19 @@ namespace NWindows.Tests;
 
 public class AppProgram
 {
+    private readonly WindowEventHub _eventHub;
+
     public static void Main(string[] args)
     {
         var program = new AppProgram();
         program.Run();
     }
-
+    
     public AppProgram()
     {
+        _eventHub = new WindowEventHub();
+        _eventHub.All += WindowEventDelegate;
     }
-
 
     public void Run()
     {
@@ -42,8 +45,9 @@ public class AppProgram
         //    args.Handled = args.Exception is ApplicationException;
         //};
 
-        _mainWindow = Window.Create(new WindowCreateOptions(WindowEventDelegate)
+        _mainWindow = Window.Create(new WindowCreateOptions() 
         {
+            Events = _eventHub
             //ShowIcon = false,
             //ShowInTaskBar = false
             //Decorations = false
@@ -54,8 +58,9 @@ public class AppProgram
 
     private Window CreatePopupWindow()
     {
-        return Window.Create(new WindowCreateOptions(WindowEventDelegate)
+        return Window.Create(new WindowCreateOptions()
         {
+            Events = _eventHub,
             Kind = WindowKind.Popup,
             MinimumSize = new SizeF(100, 100),
             MaximumSize = new SizeF(500, 500),

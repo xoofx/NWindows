@@ -252,19 +252,11 @@ internal unsafe class Win32Dispatcher : Dispatcher
                         UnRegisterWindow(winWindow);
 
                         // If we don't have anymore windows running, then we shutdown the loop
+                        // TODO: We might want to change this default behavior and so make it more pluggable
                         if (_windows.Count == 0)
                         {
                             Shutdown();
                         }
-                        else
-                        {
-                            // If the current frame is a modal window, we need to exit from the frame loop
-                            if (CurrentFrame is WindowModalFrame modalFrame && modalFrame.Window == winWindow)
-                            {
-                                modalFrame.Continue = false;
-                            }
-                        }
-
                         result = 0;
                     }
                         break;

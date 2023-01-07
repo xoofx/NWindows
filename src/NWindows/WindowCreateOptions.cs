@@ -10,17 +10,8 @@ namespace NWindows;
 /// <summary>
 /// Options for creating a window.
 /// </summary>
-public readonly struct WindowCreateOptions
+public class WindowCreateOptions
 {
-    /// <summary>
-    /// Creates a new instance of this object with the specified window event delegate.
-    /// </summary>
-    /// <param name="windowEventHandler">The window event delegate.</param>
-    public WindowCreateOptions(WindowEventDelegate windowEventHandler)
-    {
-        WindowEventHandler = windowEventHandler;
-    }
-
     /// <summary>
     /// Sets a kind of window. Default is <see cref="WindowKind.TopLevel"/>
     /// </summary>
@@ -131,7 +122,7 @@ public readonly struct WindowCreateOptions
     /// <summary>
     /// Sets the window event delegate that will receive events.
     /// </summary>
-    public WindowEventDelegate WindowEventHandler { get; init; }
+    public WindowEventHub Events { get; init; } = new WindowEventHub();
 
     /// <summary>
     /// Verify options and throw an exception if an invalid setup is provided.

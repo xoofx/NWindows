@@ -17,7 +17,7 @@ public struct WindowEvent : IWindowEvent
     {
     }
 
-    internal WindowEvent(WindowEventKind kind)
+    public WindowEvent(WindowEventKind kind)
     {
         _kind = kind;
     }
@@ -42,9 +42,7 @@ public struct WindowEvent : IWindowEvent
         {
             WindowEventKind.Undefined => "Kind: undefined",
             WindowEventKind.Idle => this.Cast<IdleEvent>().ToString(),
-            WindowEventKind.Shutdown => $"{nameof(Kind)}: {nameof(WindowEventKind.Shutdown)}",
             WindowEventKind.System => this.Cast<SystemEvent>().ToString(),
-            WindowEventKind.Application => $"{nameof(Kind)}: {nameof(WindowEventKind.Application)}",
             WindowEventKind.Frame => this.Cast<FrameEvent>().ToString(),
             WindowEventKind.Paint => this.Cast<PaintEvent>().ToString(),
             WindowEventKind.HitTest => this.Cast<HitTestEvent>().ToString(),

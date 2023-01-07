@@ -58,7 +58,7 @@ internal unsafe class Win32Window : Window
     private bool _showInTaskBar;
     private bool _initialShowInTaskBar;
 
-    public Win32Window(in WindowCreateOptions options) : base(options)
+    public Win32Window(WindowCreateOptions options) : base(options)
     {
         _hasDecorations = options.Decorations;
         _resizeable = options.Resizable;

@@ -5,6 +5,7 @@
 using System;
 using System.Drawing;
 using NWindows.Threading;
+using TerraFX.Interop.Windows;
 
 namespace NWindows;
 
@@ -29,12 +30,12 @@ namespace NWindows;
 
 public abstract class Window : DispatcherObject
 {
-    internal Window(in WindowCreateOptions options)
+    internal Window(WindowCreateOptions options)
     {
-        EventHandler = options.WindowEventHandler;
+        Events = options.Events;
     }
 
-    public WindowEventDelegate EventHandler { get; }
+    public WindowEventHub Events { get; }
 
     public IntPtr Handle { get; protected set; }
 
@@ -96,9 +97,23 @@ public abstract class Window : DispatcherObject
     {
         VerifyAccess();
         VerifyPopup();
-        
-        // Block until this window is closed
-        Dispatcher.PushFrame(new WindowModalFrame(Dispatcher, this));
+
+        var frame = new ModalFrame(Dispatcher, this);
+        WindowEventHub.CloseEventHandler stopFrame = (Window window, ref CloseEvent evt) =>
+        {
+            frame.Continue = false;
+        };
+
+        Events.Close += stopFrame;
+        try
+        {
+            // Block until this window is closed
+            Dispatcher.PushFrame(frame);
+        }
+        finally
+        {
+            Events.Close -= stopFrame;
+        }
     }
 
     public static Window Create(WindowCreateOptions options)
@@ -113,37 +128,57 @@ public abstract class Window : DispatcherObject
         throw new PlatformNotSupportedException();
     }
 
-    protected void VerifyPopup()
+    internal void VerifyPopup()
     {
         if (Kind != WindowKind.Popup) throw new InvalidOperationException("Window is not a Popup. Expecting the window to be a Popup for this operation");
     }
 
-    protected void VerifyResizeable()
+    internal void VerifyResizeable()
     {
         if (!Resizeable) throw new InvalidOperationException("Window is not resizable");
     }
 
-    protected void VerifyTopLevel()
+    internal void VerifyTopLevel()
     {
         if (Kind != WindowKind.TopLevel) throw new InvalidOperationException("Window is not a TopLevel. Expecting the window to be a TopLevel for this operation");
     }
 
-    protected internal void OnWindowEvent(ref WindowEvent evt)
+    internal void OnWindowEvent(ref WindowEvent evt)
     {
-        EventHandler.Invoke(this, ref evt);
+        Events.OnWindowEvent(this, ref evt);
     }
 
-    protected void OnFrameEvent(FrameEventKind frameEventKind)
+    internal void OnFrameEvent(FrameEventKind frameEventKind)
     {
         var frameEvent = new WindowEvent(WindowEventKind.Frame);
         frameEvent.Frame.SubKind = frameEventKind;
         OnWindowEvent(ref frameEvent);
     }
-    protected bool OnPaintEvent(in RectangleF bounds)
+    internal bool OnPaintEvent(in RectangleF bounds)
     {
         var paintEvent = new WindowEvent(WindowEventKind.Paint);
         paintEvent.Paint.Bounds = bounds;
         OnWindowEvent(ref paintEvent);
         return paintEvent.Paint.Handled;
+    }
+
+    private sealed class ModalFrame : DispatcherFrame
+    {
+        private readonly Window _window;
+
+        public ModalFrame(Dispatcher dispatcher, Window window) : base(dispatcher, false)
+        {
+            _window = window;
+        }
+
+        protected override void Enter()
+        {
+            _window.Modal = true;
+        }
+
+        protected override void Leave()
+        {
+            // The Window has been destroyed if we leave, so we don't need to modify the modal of the parent
+        }
     }
 }

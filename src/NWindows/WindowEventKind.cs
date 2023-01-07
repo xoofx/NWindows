@@ -8,9 +8,7 @@ public enum WindowEventKind
 {
     Undefined,
     Idle,
-    Shutdown,
     System,
-    Application,
     Frame,
     Paint,
     HitTest,
