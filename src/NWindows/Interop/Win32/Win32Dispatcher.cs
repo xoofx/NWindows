@@ -4,6 +4,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.ExceptionServices;
 using System.Runtime.InteropServices;
@@ -39,11 +40,25 @@ internal unsafe class Win32Dispatcher : Dispatcher
     private int _runMessageLoop;
     private readonly uint WM_DISPATCHER_QUEUE;
     private readonly SystemEvent _systemEvent;
-    
+
+    /// <summary>
+    /// Windows 10 1607 => 10.0.14393
+    /// </summary>
+    private static readonly Version MinimumWindowsVersion = new Version(10, 0, 14393, 0);
+    private const string WindowsVersion = "Windows 10 1607";
+
+
     [ThreadStatic] internal static GCHandle CreatedWindowHandle;
 
     public Win32Dispatcher(Thread thread) : base(thread)
     {
+        // Make sure that we are supporting the Windows version
+        // This should be guaranteed by .NET 7 OS requirements, but we are still double checking
+        if (Environment.OSVersion.Version < MinimumWindowsVersion)
+        {
+            throw new PlatformNotSupportedException($"The Windows version {Environment.OSVersion.Version} is not supported. Expecting at least {WindowsVersion} ({MinimumWindowsVersion})");
+        }
+
         _windows = new List<Win32Window>();
         _mapHandleToWindow = new Dictionary<HWND, Win32Window>();
         _mapTimerIdToTimer = new Dictionary<nuint, DispatcherTimer>();
@@ -74,6 +89,17 @@ internal unsafe class Win32Dispatcher : Dispatcher
             }
         }
 
+        // TODO: only valid for Window Creator Update
+        var oldContext = SetThreadDpiAwarenessContext((DPI_AWARENESS_CONTEXT)DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
+        if (oldContext != IntPtr.Zero)
+        {
+            var newContext = GetThreadDpiAwarenessContext();
+            if (newContext == oldContext)
+            {
+                Debug.WriteLine("Invalid DPI changed");
+            }
+        }
+        
         fixed (char* lpszClassName = "UxdDisplayChangeMessage")
         {
             _uxdDisplayChangeMessage = RegisterWindowMessageW((ushort*)lpszClassName);

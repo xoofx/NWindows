@@ -123,6 +123,19 @@ public record WindowCreateOptions
     /// Sets the window event delegate that will receive events.
     /// </summary>
     public WindowEventHub Events { get; init; } = new WindowEventHub();
+    
+    /// <summary>
+    /// Sets the window start position (default, center parent, center screen)
+    /// </summary>
+    public WindowStartPosition StartPosition { get; init; } = WindowStartPosition.Default;
+
+    /// <summary>
+    /// Sets the factor relative to the screen size if the size is not specified. Default is <c>0.6f</c>.
+    /// </summary>
+    /// <remarks>
+    /// Maximum is 1.0f, minimum factor is 0.1f.
+    /// </remarks>
+    public PointF DefaultSizeFactor { get; init; } = new PointF(0.6f, 0.6f);
 
     /// <summary>
     /// Verify options and throw an exception if an invalid setup is provided.

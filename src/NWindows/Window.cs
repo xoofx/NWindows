@@ -9,7 +9,6 @@ using NWindows.Threading;
 
 namespace NWindows;
 
-
 // Missing options:
 // - DefaultSize (in options)
 // - WindowStartPosition (e.g Default, CenterParent, CenterScreen)
@@ -25,7 +24,6 @@ namespace NWindows;
 // - CenterToScreen
 //
 // Missing events:
-// - DpiChanged: See https://learn.microsoft.com/en-us/windows/win32/hidpi/high-dpi-desktop-application-development-on-windows
 // - ResizeBegin / ResizeEnd
 //
 // 
@@ -60,6 +58,8 @@ public abstract class Window : DispatcherObject
     public IntPtr Handle { get; protected set; }
 
     public WindowKind Kind { get; protected set; }
+
+    public abstract Point Dpi { get; }
 
     public abstract Color BackgroundColor { get; set; }
 
@@ -109,8 +109,6 @@ public abstract class Window : DispatcherObject
 
     public abstract Point ClientToScreen(PointF position);
 
-    public Point CurrentDpi => GetScreen() is {} screen ? screen.Dpi : new Point(96, 96);
-    
     public abstract Screen? GetScreen();
 
     public void ShowDialog()

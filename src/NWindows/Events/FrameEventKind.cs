@@ -35,4 +35,5 @@ public enum FrameEventKind
     MinimizeableChanged,
     BackgroundColorChanged,
     ShowInTaskBarChanged,
+    DpiChanged
 }
