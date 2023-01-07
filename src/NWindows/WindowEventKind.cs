@@ -7,7 +7,6 @@ namespace NWindows;
 public enum WindowEventKind
 {
     Undefined,
-    Idle,
     System,
     Frame,
     Paint,

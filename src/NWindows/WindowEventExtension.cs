@@ -11,7 +11,7 @@ namespace NWindows;
 public static class WindowEventExtension
 {
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static ref WindowEvent AsWindowEvent<T>(this ref T evt) where T: struct, IWindowEvent
+    public static ref WindowEvent AsWindowEvent<T>(this ref T evt) where T : struct, IWindowEvent
     {
         return ref Unsafe.As<T, WindowEvent>(ref evt);
     }
@@ -29,21 +29,20 @@ public static class WindowEventExtension
         if (evt.Kind != T.StaticKind) ThrowInvalidCast(evt.Kind, T.StaticKind);
         return ref Unsafe.As<WindowEvent, T>(ref evt);
     }
-    
+
     public static string ToText(this WindowEventKind kind)
     {
         return kind switch
         {
-            WindowEventKind.Idle => "idle",
-            WindowEventKind.System => "system",
-            WindowEventKind.Frame => "control",
-            WindowEventKind.Paint => "paint",
-            WindowEventKind.HitTest => "hittest",
-            WindowEventKind.Keyboard => "keyboard",
-            WindowEventKind.Mouse => "mouse",
-            WindowEventKind.Close => "close",
-            WindowEventKind.Text => "text",
-            _ => "undefined"
+            WindowEventKind.System => nameof(WindowEventKind.System),
+            WindowEventKind.Frame => nameof(WindowEventKind.Frame),
+            WindowEventKind.Paint => nameof(WindowEventKind.Paint),
+            WindowEventKind.HitTest => nameof(WindowEventKind.HitTest),
+            WindowEventKind.Keyboard => nameof(WindowEventKind.Keyboard),
+            WindowEventKind.Mouse => nameof(WindowEventKind.Mouse),
+            WindowEventKind.Close => nameof(WindowEventKind.Close),
+            WindowEventKind.Text => nameof(WindowEventKind.Text),
+            _ => nameof(WindowEventKind.Undefined)
         };
     }
 

@@ -20,39 +20,8 @@ public abstract partial class Dispatcher
     private readonly ConcurrentQueue<DispatcherJob> _queue;
     private readonly List<DispatcherFrame> _frames;
 
-    private readonly DispatcherUnhandledExceptionFilterEventArgs _defaultDispatcherUnhandledExceptionFilterEventArgs;
-    private readonly DispatcherUnhandledExceptionEventArgs _defaultDispatcherUnhandledExceptionEventArgs;
-
-    private event EventHandler<DispatcherUnhandledExceptionEventArgs>? _unhandledException;
-    private event EventHandler<DispatcherUnhandledExceptionFilterEventArgs>? _unhandledExceptionFilter;
-
-    public event EventHandler<DispatcherUnhandledExceptionEventArgs> UnhandledException
-    {
-        add
-        {
-            VerifyAccess();
-            _unhandledException += value;
-        }
-        remove
-        {
-            VerifyAccess();
-            _unhandledException -= value;
-        }
-    }
-
-    public event EventHandler<DispatcherUnhandledExceptionFilterEventArgs> UnhandledExceptionFilter
-    {
-        add
-        {
-            VerifyAccess();
-            _unhandledExceptionFilter += value;
-        }
-        remove
-        {
-            VerifyAccess();
-            _unhandledExceptionFilter -= value;
-        }
-    }
+    private readonly UnhandledExceptionFilterEvent _defaultUnhandledExceptionFilterEvent;
+    private readonly UnhandledExceptionEvent _defaultUnhandledExceptionEvent;
 
     private void VerifyRunning()
     {
@@ -177,30 +146,18 @@ public abstract partial class Dispatcher
     
     internal bool HandleException(Exception exception)
     {
-        var unhandled = _unhandledException;
-        if (unhandled != null)
-        {
-            _defaultDispatcherUnhandledExceptionEventArgs.Exception = exception;
-            _defaultDispatcherUnhandledExceptionEventArgs.Handled = false;
-            unhandled(this, _defaultDispatcherUnhandledExceptionEventArgs);
-            return _defaultDispatcherUnhandledExceptionEventArgs.Handled;
-        }
-        return false;
+        _defaultUnhandledExceptionEvent.Exception = exception;
+        _defaultUnhandledExceptionEvent.Handled = false;
+        Events.OnDispatcherEvent(_defaultUnhandledExceptionEvent);
+        return _defaultUnhandledExceptionEvent.Handled;
     }
 
     internal bool FilterException(Exception exception)
     {
-        var unhandledFilter = _unhandledExceptionFilter;
-
-        if (unhandledFilter != null)
-        {
-            _defaultDispatcherUnhandledExceptionFilterEventArgs.Exception = exception;
-            _defaultDispatcherUnhandledExceptionFilterEventArgs.RequestCatch = false;
-            unhandledFilter(this, _defaultDispatcherUnhandledExceptionFilterEventArgs);
-            return _defaultDispatcherUnhandledExceptionFilterEventArgs.RequestCatch;
-        }
-
-        return true;
+        _defaultUnhandledExceptionFilterEvent.Exception = exception;
+        _defaultUnhandledExceptionFilterEvent.RequestCatch = false;
+        Events.OnDispatcherEvent(_defaultUnhandledExceptionFilterEvent);
+        return _defaultUnhandledExceptionFilterEvent.RequestCatch;
     }
 
     internal abstract void NotifyJobQueue();

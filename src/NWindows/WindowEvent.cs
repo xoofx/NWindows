@@ -34,22 +34,20 @@ public struct WindowEvent : IWindowEvent
     [FieldOffset(0)] internal HitTestEvent HitTest;
     [FieldOffset(0)] internal CloseEvent Close;
     [FieldOffset(0)] internal TextEvent Text;
-    [FieldOffset(0)] internal IdleEvent Idle;
 
     public override string ToString()
     {
         return Kind switch
         {
             WindowEventKind.Undefined => "Kind: undefined",
-            WindowEventKind.Idle => this.Cast<IdleEvent>().ToString(),
-            WindowEventKind.System => this.Cast<SystemEvent>().ToString(),
-            WindowEventKind.Frame => this.Cast<FrameEvent>().ToString(),
-            WindowEventKind.Paint => this.Cast<PaintEvent>().ToString(),
-            WindowEventKind.HitTest => this.Cast<HitTestEvent>().ToString(),
-            WindowEventKind.Keyboard => this.Cast<KeyboardEvent>().ToString(),
-            WindowEventKind.Mouse => this.Cast<MouseEvent>().ToString(),
-            WindowEventKind.Close => this.Cast<CloseEvent>().ToString(),
-            WindowEventKind.Text => this.Cast<TextEvent>().ToString(),
+            WindowEventKind.System => this.System.ToString(),
+            WindowEventKind.Frame => this.Frame.ToString(),
+            WindowEventKind.Paint => this.Paint.ToString(),
+            WindowEventKind.HitTest => this.HitTest.ToString(),
+            WindowEventKind.Keyboard => this.Keyboard.ToString(),
+            WindowEventKind.Mouse => this.Mouse.ToString(),
+            WindowEventKind.Close => this.Close.ToString(),
+            WindowEventKind.Text => this.Text.ToString(),
             _ => "Kind: unknown"
         };
     }

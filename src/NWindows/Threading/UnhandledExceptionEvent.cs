@@ -6,14 +6,9 @@ using System;
 
 namespace NWindows.Threading;
 
-public sealed class DispatcherUnhandledExceptionFilterEventArgs : DispatcherEventArgs
+public sealed record UnhandledExceptionEvent() : DispatcherEvent(DispatcherEventKind.UnhandledException)
 {
-    internal DispatcherUnhandledExceptionFilterEventArgs(Dispatcher dispatcher)
-        : base(dispatcher)
-    {
-    }
-
     public Exception? Exception { get; internal set; }
 
-    public bool RequestCatch { get; set; }
+    public bool Handled { get; set; }
 }

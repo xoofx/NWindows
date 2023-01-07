@@ -22,19 +22,12 @@ public abstract partial class Dispatcher
 {
     private bool _hasShutdownStarted;
     private bool _hasShutdownFinished;
+    private readonly IdleEvent _idleEvent;
 
     /// <summary>
     /// Shared synchronization context for a dispatcher
     /// </summary>
     protected readonly DispatcherSynchronizationContext DispatcherSynchronizationContext;
-
-    // ReSharper disable once InconsistentNaming
-#pragma warning disable IDE1006
-    private event EventHandler? _shutdownStarted;
-    // ReSharper disable once InconsistentNaming
-    private event EventHandler? _shutdownFinished;
-    private event DispatcherIdleEventHandler? _idleHandler;
-#pragma warning restore IDE1006
 
     // We use a fast static instance for the current dispatcher 
     // We check that we are on the same thread otherwise we override it
@@ -63,14 +56,22 @@ public abstract partial class Dispatcher
 
         DispatcherSynchronizationContext = new DispatcherSynchronizationContext(this);
 
-        // Pre-allocate exception args
-        _defaultDispatcherUnhandledExceptionFilterEventArgs = new DispatcherUnhandledExceptionFilterEventArgs(this);
-        _defaultDispatcherUnhandledExceptionEventArgs = new DispatcherUnhandledExceptionEventArgs(this);
+        // Pre-allocate events
+        _idleEvent = new IdleEvent();
+        _defaultUnhandledExceptionFilterEvent = new UnhandledExceptionFilterEvent();
+        _defaultUnhandledExceptionEvent = new UnhandledExceptionEvent();
 
         // Make sure that the TLS dispatcher is set
         _tlsCurrentDispatcher = this;
+
+        Events = new DispatcherEventHub(this);
     }
 
+    /// <summary>
+    /// Gets the event hub for this dispatcher.
+    /// </summary>
+    public DispatcherEventHub Events { get; }
+    
     /// <summary>
     /// Gets the current dispatcher.
     /// </summary>
@@ -138,48 +139,6 @@ public abstract partial class Dispatcher
     public bool HasShutdownStarted => _hasShutdownStarted;
 
     public bool HasShutdownFinished => _hasShutdownFinished;
-
-    public event EventHandler ShutdownStarted
-    {
-        add
-        {
-            VerifyAccess();
-            _shutdownStarted += value;
-        }
-        remove
-        {
-            VerifyAccess();
-            _shutdownStarted -= value;
-        }
-    }
-
-    public event EventHandler ShutdownFinished
-    {
-        add
-        {
-            VerifyAccess();
-            _shutdownFinished += value;
-        }
-        remove
-        {
-            VerifyAccess();
-            _shutdownFinished -= value;
-        }
-    }
-
-    public event DispatcherIdleEventHandler Idle
-    {
-        add
-        {
-            VerifyAccess();
-            _idleHandler += value;
-        }
-        remove
-        {
-            VerifyAccess();
-            _idleHandler -= value;
-        }
-    }
     
     public bool EnableDebug
     {
@@ -236,8 +195,8 @@ public abstract partial class Dispatcher
         VerifyAccess();
 
         PostQuitToMessageLoop();
-        
-        _shutdownStarted?.Invoke(this, EventArgs.Empty);
+
+        Events.OnDispatcherEvent(ShutdownEvent.ShutdownStarted);
         _hasShutdownStarted = true;
     }
 
@@ -246,7 +205,7 @@ public abstract partial class Dispatcher
         VerifyAccess();
         PushFrameImpl(new DispatcherFrame(this));
 
-        _shutdownFinished?.Invoke(this, EventArgs.Empty);
+        Events.OnDispatcherEvent(ShutdownEvent.ShutdownFinished);
         _hasShutdownFinished = true;
     }
 
@@ -269,7 +228,6 @@ public abstract partial class Dispatcher
             throw new InvalidOperationException("Dispatcher frame is not attached to this dispatcher");
         }
 
-        var applicationIdle = new WindowEvent(WindowEventKind.Idle);
         var frameCount = _frames.Count;
         _frames.Add(frame);
         try
@@ -299,9 +257,9 @@ public abstract partial class Dispatcher
 
                 // Handle idle
                 // Reset the state of the idle
-                applicationIdle.Idle.Continuous = false;
-                _idleHandler?.Invoke(this, ref applicationIdle.Idle);
-                blockOnWait = !applicationIdle.Idle.Continuous;
+                _idleEvent.Continuous = false;
+                Events.OnDispatcherEvent(_idleEvent);
+                blockOnWait = !_idleEvent.Continuous;
             }
         }
         finally

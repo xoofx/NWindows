@@ -11,9 +11,12 @@ namespace NWindows.Tests;
 public class AppProgram
 {
     private readonly WindowEventHub _eventHub;
+    private int _eventId;
 
     public static void Main(string[] args)
     {
+        Console.WriteLine(Environment.OSVersion.Version);
+
         var program = new AppProgram();
         program.Run();
     }
@@ -22,6 +25,12 @@ public class AppProgram
     {
         _eventHub = new WindowEventHub();
         _eventHub.All += WindowEventDelegate;
+    }
+
+    private void LogEvent(object evt)
+    {
+        _eventId++;
+        Console.WriteLine($"[{_eventId}] {evt.GetType().Name} => {evt}");
     }
 
     public void Run()
@@ -39,6 +48,11 @@ public class AppProgram
             Console.WriteLine($"Timer {countTimer} event");
         };
         timer.Start();
+
+        Dispatcher.Current.Events.All += (dispatcher, evt) =>
+        {
+            LogEvent(evt);
+        };
 
         //Dispatcher.Current.UnhandledException += (sender, args) =>
         //{
@@ -71,15 +85,12 @@ public class AppProgram
         });
     }
 
-    private int EventNumber;
-
     private Point deltaMousePosition;
     private Window? _mainWindow;
 
     private void WindowEventDelegate(Window window, ref WindowEvent evt)
     {
-        EventNumber++;
-        Console.WriteLine($"[{EventNumber}] {evt} Window Position: {window.Position} Window Size: {window.Size}");
+        LogEvent(evt);
         if (evt.Kind == WindowEventKind.System)
         {
             DisplayScreens();
@@ -90,7 +101,7 @@ public class AppProgram
             var mousePositionOnScreen = window.ClientToScreen(mouseEvt.Position);
             if ((mouseEvt.Button & MouseButtonFlags.LeftButton) != 0)
             {
-                window.Title = $"{window.Kind} Pressed: {EventNumber}";
+                window.Title = $"{window.Kind} Pressed: {_eventId}";
 
                 deltaMousePosition = new Point(window.Position.X - mousePositionOnScreen.X, window.Position.Y - mousePositionOnScreen.Y);
             }

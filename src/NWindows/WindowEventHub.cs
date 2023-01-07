@@ -17,7 +17,6 @@ public sealed class WindowEventHub : DispatcherObject
     private HitTestEventHandler? _hitTest;
     private CloseEventHandler? _close;
     private TextEventHandler? _text;
-    private IdleEventHandler? _idle;
 
     public WindowEventHub()
     {
@@ -26,7 +25,7 @@ public sealed class WindowEventHub : DispatcherObject
     public WindowEventHub(Dispatcher dispatcher) : base(dispatcher)
     {
     }
-    
+
     public event WindowEventHandler All
     {
         add
@@ -153,28 +152,11 @@ public sealed class WindowEventHub : DispatcherObject
         }
     }
 
-    public event IdleEventHandler Idle
-    {
-        add
-        {
-            VerifyAccess();
-            _idle += value;
-        }
-        remove
-        {
-            VerifyAccess();
-            _idle -= value;
-        }
-    }
-
     internal void OnWindowEvent(Window window, ref WindowEvent evt)
     {
         _all?.Invoke(window, ref evt);
         switch (evt.Kind)
         {
-            case WindowEventKind.Idle:
-                _idle?.Invoke(window, ref evt.Idle);
-                break;
             case WindowEventKind.System:
                 _system?.Invoke(window, ref evt.System);
                 break;
@@ -219,6 +201,4 @@ public sealed class WindowEventHub : DispatcherObject
     public delegate void CloseEventHandler(Window window, ref CloseEvent evt);
 
     public delegate void TextEventHandler(Window window, ref TextEvent evt);
-
-    public delegate void IdleEventHandler(Window window, ref IdleEvent evt);
 }

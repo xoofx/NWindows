@@ -4,4 +4,7 @@
 
 namespace NWindows.Threading;
 
-public delegate void DispatcherIdleEventHandler(object sender, ref IdleEvent idleEvent);
+public sealed record IdleEvent() : DispatcherEvent(DispatcherEventKind.Idle)
+{
+    public bool Continuous { get; set; }
+}
