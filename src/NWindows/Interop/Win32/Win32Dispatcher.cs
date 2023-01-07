@@ -39,8 +39,7 @@ internal unsafe class Win32Dispatcher : Dispatcher
     private int _runMessageLoop;
     private readonly uint WM_DISPATCHER_QUEUE;
     private readonly SystemEvent _systemEvent;
-
-
+    
     [ThreadStatic] internal static GCHandle CreatedWindowHandle;
 
     public Win32Dispatcher(Thread thread) : base(thread)
@@ -49,6 +48,7 @@ internal unsafe class Win32Dispatcher : Dispatcher
         _mapHandleToWindow = new Dictionary<HWND, Win32Window>();
         _mapTimerIdToTimer = new Dictionary<nuint, DispatcherTimer>();
         _mapTimerToTimerId = new Dictionary<DispatcherTimer, nuint>(ReferenceEqualityComparer.Instance);
+        _systemEvent = new SystemEvent();
 
         var guidAsString = Guid.NewGuid().ToString("N");
         var className = $"NWindows-{guidAsString}";
@@ -111,25 +111,51 @@ internal unsafe class Win32Dispatcher : Dispatcher
     internal override void WaitAndDispatchMessage(bool blockOnWait)
     {
         MSG msg;
-        // Use Peek/Get and handle idle
-        var msgResult = blockOnWait
-            ? GetMessageW(&msg, HWND.NULL, wMsgFilterMin: WM_NULL, wMsgFilterMax: WM_NULL)
-            : PeekMessageW(&msg, HWND.NULL, wMsgFilterMin: WM_NULL, wMsgFilterMax: WM_NULL, wRemoveMsg: PM_REMOVE);
 
-        if (msgResult)
+        // We process as many messages as we can in a loop
+        while (true)
         {
-            if (msg.message == WM_QUIT)
+            // Use Peek/Get to handle idle
+            var msgResult = blockOnWait
+                ? GetMessageW(&msg, HWND.NULL, wMsgFilterMin: WM_NULL, wMsgFilterMax: WM_NULL)
+                : PeekMessageW(&msg, HWND.NULL, wMsgFilterMin: WM_NULL, wMsgFilterMax: WM_NULL, wRemoveMsg: PM_REMOVE);
+
+            if (msgResult)
             {
-                var frame = CurrentFrame;
-                if (frame != null)
+                // MSDN documentation says that if it returns -1, there is something wrong
+                if (msgResult.Value == -1)
                 {
-                    frame.Continue = false;
+                    throw new InvalidOperationException("Unexpected error while processing Win32 message");
+                }
+
+                if (msg.message == WM_QUIT)
+                {
+                    var frame = CurrentFrame;
+                    if (frame != null)
+                    {
+                        frame.Continue = false;
+                    }
+                }
+                else
+                {
+                    TranslateMessage(&msg);
+                    _ = DispatchMessageW(&msg);
+                }
+
+                if (blockOnWait)
+                {
+                    // Check if we have any pending messages in case of blocking
+                    // If we don't have any messages, exit this loop to give the Idle event a chance to trigger
+                    msgResult = PeekMessageW(&msg, HWND.NULL, wMsgFilterMin: WM_NULL, wMsgFilterMax: WM_NULL, wRemoveMsg: PM_NOREMOVE);
+                    if (!msgResult)
+                    {
+                        break;
+                    }
                 }
             }
             else
             {
-                TranslateMessage(&msg);
-                _ = DispatchMessageW(&msg);
+                break;
             }
         }
     }

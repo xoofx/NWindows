@@ -6,6 +6,7 @@ using System.Drawing;
 using NWindows.Events;
 using NWindows.Input;
 using NWindows.Threading;
+using NWindows.Threading.Events;
 
 namespace NWindows.Tests;
 
@@ -52,6 +53,10 @@ public class AppProgram
 
         Dispatcher.Current.Events.All += (dispatcher, evt) =>
         {
+            //if (evt is IdleEvent idleEvent)
+            //{
+            //    idleEvent.Continuous = true;
+            //}
             LogEvent(evt);
         };
 

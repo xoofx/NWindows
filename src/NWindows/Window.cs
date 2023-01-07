@@ -32,6 +32,7 @@ namespace NWindows;
 
 public abstract class Window : DispatcherObject
 {
+    // The following events are cached per Window to avoid to many allocations
     // ReSharper disable InconsistentNaming
     internal readonly CloseEvent _closeEvent;
     internal readonly FrameEvent _frameEvent;
