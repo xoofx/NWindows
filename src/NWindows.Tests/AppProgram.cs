@@ -105,13 +105,13 @@ public class AppProgram
         {
             var mouseEvt = (MouseEvent)evt;
             var mousePositionOnScreen = window.ClientToScreen(mouseEvt.Position);
-            if ((mouseEvt.Button & MouseButtonFlags.LeftButton) != 0)
+            if (mouseEvt.Button == MouseButton.Left)
             {
                 window.Title = $"{window.Kind} Pressed: {_eventId}";
 
                 deltaMousePosition = new Point(window.Position.X - mousePositionOnScreen.X, window.Position.Y - mousePositionOnScreen.Y);
             }
-            if ((mouseEvt.Pressed & MouseButtonFlags.LeftButton) != 0)
+            if ((mouseEvt.Pressed & MouseButtonFlags.Left) != 0)
             {
                 window.Position = new Point(mousePositionOnScreen.X + deltaMousePosition.X, mousePositionOnScreen.Y + deltaMousePosition.Y);
             }
@@ -121,17 +121,17 @@ public class AppProgram
                 window.Opacity += 0.1f * mouseEvt.WheelDelta.Y;
             }
 
-            if ((mouseEvt.Button & MouseButtonFlags.RightButton) != 0 && mouseEvt.SubKind == MouseEventKind.ButtonDown)
+            if (mouseEvt.Button == MouseButton.Right && mouseEvt.SubKind == MouseEventKind.ButtonDown)
             {
                 window.TopMost = !window.TopMost;
             }
 
-            if ((mouseEvt.Button & MouseButtonFlags.MiddleButton) != 0 && mouseEvt.SubKind == MouseEventKind.ButtonDown)
+            if (mouseEvt.Button == MouseButton.Middle && mouseEvt.SubKind == MouseEventKind.ButtonDown)
             {
                 window.Resizeable = !window.Resizeable;
             }
             
-            if ((mouseEvt.Button & MouseButtonFlags.Button1) != 0 && mouseEvt.SubKind == MouseEventKind.ButtonDown)
+            if (mouseEvt.Button == MouseButton.XButton1 && mouseEvt.SubKind == MouseEventKind.ButtonDown)
             {
                 if (window.TopLevel)
                 {
@@ -144,7 +144,7 @@ public class AppProgram
                 }
             }
 
-            if ((mouseEvt.Button & MouseButtonFlags.Button2) != 0 && mouseEvt.SubKind == MouseEventKind.ButtonDown)
+            if (mouseEvt.Button == MouseButton.XButton2 && mouseEvt.SubKind == MouseEventKind.ButtonDown)
             {
                 window.Close();
             }

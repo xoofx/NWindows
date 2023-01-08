@@ -12,6 +12,8 @@ internal class Win32InputManager : InputManager
     public Win32InputManager(Dispatcher dispatcher) : base(dispatcher)
     {
         PrimaryKeyboardDevice = new Win32KeyboardDevice(this);
+        PrimaryMouseDevice = new Win32MouseDevice(this);
     }
     public override KeyboardDevice PrimaryKeyboardDevice { get; }
+    public override MouseDevice PrimaryMouseDevice { get; }
 }

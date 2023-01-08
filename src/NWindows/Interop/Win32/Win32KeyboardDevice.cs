@@ -11,7 +11,10 @@ internal class Win32KeyboardDevice : KeyboardDevice
 {
     public Win32KeyboardDevice(InputManager manager) : base(manager)
     {
+        IsActive = true;
     }
+
+    public override bool IsActive { get; }
 
     internal override KeyStates GetKeyStatesFromSystem(Key key)
     {
@@ -28,4 +31,5 @@ internal class Win32KeyboardDevice : KeyboardDevice
 
         return keyStates;
     }
+
 }

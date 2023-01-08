@@ -18,5 +18,7 @@ public abstract class InputDevice : DispatcherObject
         Manager = manager;
     }
 
+    public abstract bool IsActive { get; }
+
     public InputManager Manager { get; }
 }

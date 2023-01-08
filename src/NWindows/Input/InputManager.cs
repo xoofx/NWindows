@@ -14,5 +14,7 @@ public abstract class InputManager : DispatcherObject
 
     public abstract KeyboardDevice PrimaryKeyboardDevice { get; }
 
+    public abstract MouseDevice PrimaryMouseDevice { get; }
+    
     public static InputManager Current => Dispatcher.Current.InputManager;
 }

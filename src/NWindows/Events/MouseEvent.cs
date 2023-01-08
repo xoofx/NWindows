@@ -11,7 +11,7 @@ public record MouseEvent() : WindowEvent(WindowEventKind.Mouse)
 {
     public MouseEventKind SubKind;
 
-    public MouseButtonFlags Button;
+    public MouseButton Button;
 
     public MouseButtonFlags Pressed;
 

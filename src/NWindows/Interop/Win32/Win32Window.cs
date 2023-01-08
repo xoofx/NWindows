@@ -1235,7 +1235,7 @@ internal unsafe class Win32Window : Window
     internal LRESULT HandleMouse(HWND hWnd, uint message, WPARAM wParam, LPARAM lParam)
     {
         var mouse = _mouseEvent;
-        mouse.Button = MouseButtonFlags.None;
+        mouse.Button = MouseButton.None;
         mouse.Pressed = MouseButtonFlags.None;
         mouse.Position = default;
         mouse.WheelDelta = default;
@@ -1293,58 +1293,58 @@ internal unsafe class Win32Window : Window
                 break;
             case WM_LBUTTONDOWN:
                 BeginCaptureMouse();
-                mouse.Button = MouseButtonFlags.LeftButton;
+                mouse.Button = MouseButton.Left;
                 mouse.SubKind = MouseEventKind.ButtonDown;
                 break;
             case WM_LBUTTONUP:
                 EndCaptureMouse();
-                mouse.Button = MouseButtonFlags.LeftButton;
+                mouse.Button = MouseButton.Left;
                 mouse.SubKind = MouseEventKind.ButtonUp;
                 break;
             case WM_LBUTTONDBLCLK:
-                mouse.Button = MouseButtonFlags.LeftButton;
+                mouse.Button = MouseButton.Left;
                 mouse.SubKind = MouseEventKind.ButtonDoubleClick;
                 break;
             case WM_RBUTTONDOWN:
                 BeginCaptureMouse();
-                mouse.Button = MouseButtonFlags.RightButton;
+                mouse.Button = MouseButton.Right;
                 mouse.SubKind = MouseEventKind.ButtonDown;
                 break;
             case WM_RBUTTONUP:
                 EndCaptureMouse();
-                mouse.Button = MouseButtonFlags.RightButton;
+                mouse.Button = MouseButton.Right;
                 mouse.SubKind = MouseEventKind.ButtonUp;
                 break;
             case WM_RBUTTONDBLCLK:
-                mouse.Button = MouseButtonFlags.RightButton;
+                mouse.Button = MouseButton.Right;
                 mouse.SubKind = MouseEventKind.ButtonDoubleClick;
                 break;
             case WM_MBUTTONDOWN:
                 BeginCaptureMouse();
-                mouse.Button = MouseButtonFlags.MiddleButton;
+                mouse.Button = MouseButton.Middle;
                 mouse.SubKind = MouseEventKind.ButtonDown;
                 break;
             case WM_MBUTTONUP:
                 EndCaptureMouse();
-                mouse.Button = MouseButtonFlags.MiddleButton;
+                mouse.Button = MouseButton.Middle;
                 mouse.SubKind = MouseEventKind.ButtonUp;
                 break;
             case WM_MBUTTONDBLCLK:
-                mouse.Button = MouseButtonFlags.MiddleButton;
+                mouse.Button = MouseButton.Middle;
                 mouse.SubKind = MouseEventKind.ButtonDoubleClick;
                 break;
             case WM_XBUTTONDOWN:
                 BeginCaptureMouse();
-                mouse.Button = HIWORD(wParam) == XBUTTON1 ? MouseButtonFlags.Button1 : MouseButtonFlags.Button2;
+                mouse.Button = HIWORD(wParam) == XBUTTON1 ? MouseButton.XButton1 : MouseButton.XButton2;
                 mouse.SubKind = MouseEventKind.ButtonDown;
                 break;
             case WM_XBUTTONUP:
                 EndCaptureMouse();
-                mouse.Button = HIWORD(wParam) == XBUTTON1 ? MouseButtonFlags.Button1 : MouseButtonFlags.Button2;
+                mouse.Button = HIWORD(wParam) == XBUTTON1 ? MouseButton.XButton1 : MouseButton.XButton2;
                 mouse.SubKind = MouseEventKind.ButtonUp;
                 break;
             case WM_XBUTTONDBLCLK:
-                mouse.Button = HIWORD(wParam) == XBUTTON1 ? MouseButtonFlags.Button1 : MouseButtonFlags.Button2;
+                mouse.Button = HIWORD(wParam) == XBUTTON1 ? MouseButton.XButton1 : MouseButton.XButton2;
                 mouse.SubKind = MouseEventKind.ButtonDoubleClick;
                 break;
             case WM_MOUSEWHEEL:
@@ -1368,15 +1368,15 @@ internal unsafe class Win32Window : Window
         {
             // Gets the buttons clicked
             if ((wParam & MK_LBUTTON) != 0)
-                evt.Pressed |= MouseButtonFlags.LeftButton;
+                evt.Pressed |= MouseButtonFlags.Left;
             if ((wParam & MK_MBUTTON) != 0)
-                evt.Pressed |= MouseButtonFlags.MiddleButton;
+                evt.Pressed |= MouseButtonFlags.Middle;
             if ((wParam & MK_RBUTTON) != 0)
-                evt.Pressed |= MouseButtonFlags.RightButton;
+                evt.Pressed |= MouseButtonFlags.Right;
             if ((wParam & MK_XBUTTON1) != 0)
-                evt.Pressed |= MouseButtonFlags.Button1;
+                evt.Pressed |= MouseButtonFlags.XButton1;
             if ((wParam & MK_XBUTTON2) != 0)
-                evt.Pressed |= MouseButtonFlags.Button2;
+                evt.Pressed |= MouseButtonFlags.XButton2;
         }
     }
 
