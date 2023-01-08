@@ -10,13 +10,14 @@ namespace NWindows.Interop.Win32;
 
 internal readonly struct Win32ScreenData : IEquatable<Win32ScreenData>
 {
-    private Win32ScreenData(string name, bool isPrimary, Point position, SizeF size, Point dpi)
+    private Win32ScreenData(string name, bool isPrimary, Point position, SizeF size, Size sizeInPixels, Point dpi)
     {
         IsValid = true;
         Name = name;
         IsPrimary = isPrimary;
         Position = position;
         Size = size;
+        SizeInPixels = sizeInPixels;
         Dpi = dpi;
     }
 
@@ -35,6 +36,8 @@ internal readonly struct Win32ScreenData : IEquatable<Win32ScreenData>
     public readonly Point Position;
 
     public readonly SizeF Size;
+
+    public readonly Size SizeInPixels;
 
     public readonly Point Dpi;
 
@@ -97,7 +100,7 @@ internal readonly struct Win32ScreenData : IEquatable<Win32ScreenData>
             var width = WindowHelper.PixelToLogical(pixelWidth, dpiX);
             var height = WindowHelper.PixelToLogical(pixelHeight, dpiY);
 
-            screenData = new Win32ScreenData(name, isPrimary, new Point(pixelPositionX, pixelPositionY), new SizeF(width, height), new Point(dpiX, dpiY));
+            screenData = new Win32ScreenData(name, isPrimary, new Point(pixelPositionX, pixelPositionY), new SizeF(width, height), new Size(pixelWidth, pixelHeight), new Point(dpiX, dpiY));
             return true;
         }
         else

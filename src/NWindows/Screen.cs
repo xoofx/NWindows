@@ -8,21 +8,19 @@ using NWindows.Threading;
 
 namespace NWindows;
 
-public abstract partial class Screen : DispatcherObject
+public abstract class Screen : DispatcherObject
 {
     internal Screen()
     {
     }
 
-    public static readonly Point DefaultDpi = new Point(96, 96);
-
     public static Point VirtualPosition => Dispatcher.Current.ScreenManager.GetVirtualScreenPosition();
 
-    public static Size VirtualSize => Dispatcher.Current.ScreenManager.GetVirtualScreenSize();
+    public static Size VirtualSizeInPixels => Dispatcher.Current.ScreenManager.GetVirtualScreenSizeInPixels();
 
     public static Screen? Primary => Dispatcher.Current.ScreenManager.GetPrimaryScreen();
 
-    public static Point PrimaryDpi => Primary?.Dpi ?? DefaultDpi;
+    public static Point PrimaryDpi => Primary?.Dpi ?? new(96, 96);
 
     public static ReadOnlySpan<Screen> Items => Dispatcher.Current.ScreenManager.GetAllScreens();
 
@@ -36,7 +34,14 @@ public abstract partial class Screen : DispatcherObject
 
     public abstract Point Position { get; }
 
-    public abstract Point Dpi { get; }
+    public abstract Size SizeInPixels { get; }
 
     public abstract SizeF Size { get; }
+    
+    public abstract Point Dpi { get; }
+
+    public override string ToString()
+    {
+        return $"Screen {nameof(Name)}: {Name}, {nameof(IsPrimary)}: {IsPrimary}, {nameof(Position)}: {Position}, {nameof(SizeInPixels)}: {SizeInPixels}, {nameof(Size)}: {Size}, {nameof(Dpi)}: {Dpi}";
+    }
 }

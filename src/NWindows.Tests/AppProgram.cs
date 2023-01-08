@@ -180,10 +180,9 @@ public class AppProgram
     {
         foreach (var screen in Screen.Items)
         {
-            Console.WriteLine($"{screen.Name} primary: {screen.IsPrimary} position: {screen.Position} size: {screen.Size}");
+            Console.WriteLine(screen);
         }
 
-        Console.WriteLine($"Virtual Screen position: {Screen.VirtualPosition} size: {Screen.VirtualSize}");
+        Console.WriteLine($"Virtual Screen position: {Screen.VirtualPosition} size: {Screen.VirtualSizeInPixels}");
     }
-
 }

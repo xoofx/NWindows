@@ -44,7 +44,7 @@ internal sealed unsafe class Win32ScreenManager : IScreenManager
 
     public Point GetVirtualScreenPosition() => _virtualScreenPosition;
 
-    public Size GetVirtualScreenSize() => _virtualScreenSize;
+    public Size GetVirtualScreenSizeInPixels() => _virtualScreenSize;
 
     public bool TryGetScreen(HMONITOR monitorHandle, [NotNullWhen(true)] out Win32Screen? screen)
     {

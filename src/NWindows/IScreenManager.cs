@@ -11,7 +11,7 @@ internal interface IScreenManager
 {
     Point GetVirtualScreenPosition();
 
-    Size GetVirtualScreenSize();
+    Size GetVirtualScreenSizeInPixels();
 
     bool TryUpdateScreens();
 

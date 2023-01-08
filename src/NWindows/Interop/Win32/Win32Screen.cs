@@ -62,6 +62,15 @@ internal sealed class Win32Screen : Screen
         }
     }
 
+    public override Size SizeInPixels
+    {
+        get
+        {
+            VerifyAccess();
+            return InternalData.SizeInPixels;
+        }
+    }
+
     public override Point Dpi
     {
         get

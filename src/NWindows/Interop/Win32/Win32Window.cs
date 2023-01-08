@@ -1732,8 +1732,8 @@ internal unsafe class Win32Window : Window
             factor.X = Math.Clamp(factor.X, 0.1f, 1.0f);
             factor.Y = Math.Clamp(factor.X, 0.1f, 1.0f);
 
-            width = WindowHelper.LogicalToPixel(primary.Size.Width * factor.X, primary.Dpi.X);
-            height = WindowHelper.LogicalToPixel(primary.Size.Height * factor.Y, primary.Dpi.Y);
+            width = (int)(primary.SizeInPixels.Width * factor.X);
+            height = (int)(primary.SizeInPixels.Height * factor.Y);
         }
         else
         {
