@@ -282,7 +282,7 @@ public abstract partial class Dispatcher
     
     internal abstract void PostQuitToMessageLoop();
 
-    internal abstract IScreenManager ScreenManager { get; }
+    internal abstract ScreenManager ScreenManager { get; }
 
     internal abstract InputManager InputManager { get; }
     

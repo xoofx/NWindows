@@ -11,7 +11,7 @@ using TerraFX.Interop.Windows;
 
 namespace NWindows.Interop.Win32;
 
-internal sealed unsafe class Win32ScreenManager : IScreenManager
+internal sealed unsafe class Win32ScreenManager : ScreenManager
 {
     private readonly Dictionary<HMONITOR, Win32Screen> _mapMonitorToScreen;
     private readonly List<Screen> _tempCollectScreens;
@@ -32,26 +32,26 @@ internal sealed unsafe class Win32ScreenManager : IScreenManager
         _ = TryUpdateScreens();
     }
 
-    public ReadOnlySpan<Screen> GetAllScreens()
+    public override ReadOnlySpan<Screen> GetAllScreens()
     {
         return _items;
     }
 
-    public Screen? GetPrimaryScreen()
+    public override Screen? GetPrimaryScreen()
     {
         return _primaryScreen;
     }
 
-    public Point GetVirtualScreenPosition() => _virtualScreenPosition;
+    public override Point GetVirtualScreenPosition() => _virtualScreenPosition;
 
-    public Size GetVirtualScreenSizeInPixels() => _virtualScreenSize;
+    public override Size GetVirtualScreenSizeInPixels() => _virtualScreenSize;
 
     public bool TryGetScreen(HMONITOR monitorHandle, [NotNullWhen(true)] out Win32Screen? screen)
     {
         return _mapMonitorToScreen.TryGetValue(monitorHandle, out screen);
     }
 
-    public bool TryUpdateScreens()
+    public override bool TryUpdateScreens()
     {
         // Clear the data before collecting information about screens
         _tempCollectScreens.Clear();
