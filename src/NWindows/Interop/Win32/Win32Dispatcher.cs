@@ -15,6 +15,7 @@ using TerraFX.Interop.Windows;
 using static TerraFX.Interop.Windows.CS;
 using static TerraFX.Interop.Windows.GWLP;
 using static TerraFX.Interop.Windows.IDC;
+using static TerraFX.Interop.Windows.IDI;
 using static TerraFX.Interop.Windows.PM;
 using static TerraFX.Interop.Windows.Windows;
 using static TerraFX.Interop.Windows.WM;
@@ -64,6 +65,9 @@ internal unsafe class Win32Dispatcher : Dispatcher
         _mapTimerToTimerId = new Dictionary<DispatcherTimer, nuint>(ReferenceEqualityComparer.Instance);
         _systemEvent = new SystemEvent();
 
+        // Load the default icon application
+        var icon = LoadIconW(Win32Shared.ModuleHandle, IDI_APPLICATION);
+
         var guidAsString = Guid.NewGuid().ToString("N");
         var className = $"NWindows-{guidAsString}";
         fixed (char* lpszClassName = className)
@@ -75,6 +79,8 @@ internal unsafe class Win32Dispatcher : Dispatcher
                 style = CS_DBLCLKS | CS_HREDRAW | CS_VREDRAW,
                 lpfnWndProc = &StaticWindowProc,
                 hInstance = Win32Shared.ModuleHandle,
+                hIcon = icon,
+                hIconSm = icon,
                 hCursor = LoadCursorW(HINSTANCE.NULL, IDC_ARROW),
                 hbrBackground = (HBRUSH)(COLOR.COLOR_WINDOW + 1), // Default background color, we should not change this but change it in the Window Create options
                 lpszClassName = (ushort*)lpszClassName
