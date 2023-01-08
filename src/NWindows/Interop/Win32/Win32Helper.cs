@@ -33,6 +33,47 @@ internal static class Win32Helper
     {
         return RGB(color.R, color.G, color.B);
     }
+    
+    public static unsafe int GetDpiForWindowSafe(HWND hWnd)
+    {
+        // Try to get the Dpi from the window, or from the monitor or from the system
+        var dpiX = Windows.GetDpiForWindow(hWnd);
+        if (dpiX == 0)
+        {
+            var monitor = MonitorFromWindow(hWnd, MONITOR.MONITOR_DEFAULTTONEAREST);
+            if (monitor != 0)
+            {
+                if (GetDpiForMonitor(monitor, MONITOR_DPI_TYPE.MDT_EFFECTIVE_DPI, &dpiX, &dpiX).SUCCEEDED && dpiX != 0)
+                {
+                    return (int)dpiX;
+                }
+            }
+            dpiX = GetDpiForSystem();
+        }
+
+        return (int)dpiX;
+    }
+
+    public static unsafe bool TryGetPositionSizeDpiAndRECT(HWND hWnd, out (Point, SizeF, int, RECT) bounds)
+    {
+        RECT rect;
+        if (GetWindowRect(hWnd, &rect))
+        {
+            var dpi = GetDpiForWindowSafe(hWnd);
+            var position = new Point(rect.left, rect.top);
+            var widthInPixel = rect.right - rect.left;
+            var heightInPixel = rect.bottom - rect.top;
+            if (widthInPixel != 0 || heightInPixel != 0)
+            {
+                var size = new SizeF(WindowHelper.PixelToLogical(widthInPixel, dpi), WindowHelper.PixelToLogical(heightInPixel, dpi));
+                bounds = (position, size, dpi, rect);
+                return true;
+            }
+        }
+
+        bounds = default;
+        return false;
+    }
 
     public static string GetMessageName(uint message)
     {

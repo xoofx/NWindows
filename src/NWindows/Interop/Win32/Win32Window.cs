@@ -259,7 +259,7 @@ internal unsafe class Win32Window : Window
         }
     }
 
-    public override Window? Parent => _parentWindow;
+    public override INativeWindow? Parent => _parentWindow;
 
     public override WindowState State
     {
@@ -456,6 +456,19 @@ internal unsafe class Win32Window : Window
         var handle = MonitorFromWindow(HWnd, MONITOR.MONITOR_DEFAULTTONEAREST);
         Dispatcher.ScreenManager.TryGetScreen(handle, out var screen);
         return screen;
+    }
+
+    public override void CenterToParent()
+    {
+        var parent = Parent;
+        if (parent != null && Win32Helper.TryGetPositionSizeDpiAndRECT((HWND)parent.Handle, out var bounds))
+        {
+            CenterPositionFromBounds(bounds.Item1, bounds.Item2);
+        }
+        else
+        {
+            CenterToScreen();
+        }
     }
 
     /// <summary>
@@ -855,24 +868,12 @@ internal unsafe class Win32Window : Window
 
         return -1;
     }
-
-    private int GetDpiForWindow()
-    {
-        var dpiX = (int)Windows.GetDpiForWindow(HWnd);
-        if (dpiX == 0)
-        {
-            dpiX = (int)GetDpiForSystem();
-        }
-
-        return dpiX;
-    }
-
     private void HandleGetMinMaxInfo(MINMAXINFO* info)
     {
         // This is called at the creation of the window
         if (_dpi.IsEmpty)
         {
-            var dpiX = (int)GetDpiForWindow();
+            var dpiX = Win32Helper.GetDpiForWindowSafe(HWnd);
             _dpi = new Point(dpiX, dpiX);
         }
         
@@ -1804,13 +1805,11 @@ internal unsafe class Win32Window : Window
             UpdateCompositionEnabled();
 
             // Update the location and size of the window after creation and before making it visible
-            RECT rect;
-            if (GetWindowRect(HWnd, &rect))
+            if (Win32Helper.TryGetPositionSizeDpiAndRECT(HWnd, out var bounds))
             {
-                var dpi = GetDpiForWindow();
-                _position = new Point(rect.left, rect.top);
-                _size = new SizeF(WindowHelper.PixelToLogical(rect.right - rect.left, dpi), WindowHelper.PixelToLogical(rect.bottom - rect.top, dpi));
-                UpdateDpi(dpi, rect);
+                _position = bounds.Item1;
+                _size = bounds.Item2;
+                UpdateDpi(bounds.Item3, bounds.Item4);
             }
 
             screen = GetScreen();

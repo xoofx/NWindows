@@ -9,7 +9,7 @@ using NWindows.Threading;
 
 namespace NWindows;
 
-public abstract class Window : DispatcherObject
+public abstract class Window : DispatcherObject, INativeWindow
 {
     // The following events are cached per Window to avoid allocations
     // ReSharper disable InconsistentNaming
@@ -62,7 +62,7 @@ public abstract class Window : DispatcherObject
 
     public abstract bool Minimizeable { get; set; }
 
-    public abstract Window? Parent { get; }
+    public abstract INativeWindow? Parent { get; }
     
     public abstract WindowState State { get; set; }
 
@@ -92,18 +92,7 @@ public abstract class Window : DispatcherObject
 
     public abstract Screen? GetScreen();
 
-    public void CenterToParent()
-    {
-        var parent = Parent;
-        if (parent != null && !parent.Size.IsEmpty)
-        {
-            CenterPositionFromBounds(parent.Position, parent.Size);
-        }
-        else
-        {
-            CenterToScreen();
-        }
-    }
+    public abstract void CenterToParent();
 
     public void CenterToScreen()
     {
@@ -182,7 +171,7 @@ public abstract class Window : DispatcherObject
         return _paintEvent.Handled;
     }
 
-    private void CenterPositionFromBounds(Point position, SizeF size)
+    internal void CenterPositionFromBounds(Point position, SizeF size)
     {
         var currentSize = Size;
         if (currentSize.IsEmpty) return;

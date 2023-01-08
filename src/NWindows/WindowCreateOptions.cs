@@ -112,7 +112,7 @@ public record WindowCreateOptions
     /// <summary>
     /// Sets the native parent window handle. Required for a popup window.
     /// </summary>
-    public Window? Parent { get; init; } = null;
+    public INativeWindow? Parent { get; init; } = null;
 
     /// <summary>
     /// Only valid for a top level window, the window will be shown in the task bar when created. Default is <c>true</c>.
