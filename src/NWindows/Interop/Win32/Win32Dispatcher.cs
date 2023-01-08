@@ -27,7 +27,7 @@ namespace NWindows.Interop.Win32;
 /// </summary>
 internal unsafe class Win32Dispatcher : Dispatcher
 {
-    private WndMsg _previousMessage;
+    private Win32Message _previousMessage;
     internal HWND Hwnd;
     private nuint _timerId;
     private readonly Dictionary<nuint, DispatcherTimer> _mapTimerIdToTimer;
@@ -66,7 +66,7 @@ internal unsafe class Win32Dispatcher : Dispatcher
         _systemEvent = new SystemEvent();
 
         // Load the default icon application
-        var icon = LoadIconW(Win32Shared.ModuleHandle, IDI_APPLICATION);
+        var icon = LoadIconW(Win32Helper.ModuleHandle, IDI_APPLICATION);
 
         var guidAsString = Guid.NewGuid().ToString("N");
         var className = $"NWindows-{guidAsString}";
@@ -78,7 +78,7 @@ internal unsafe class Win32Dispatcher : Dispatcher
                 cbSize = (uint)sizeof(WNDCLASSEXW),
                 style = CS_DBLCLKS | CS_HREDRAW | CS_VREDRAW,
                 lpfnWndProc = &StaticWindowProc,
-                hInstance = Win32Shared.ModuleHandle,
+                hInstance = Win32Helper.ModuleHandle,
                 hIcon = icon,
                 hIconSm = icon,
                 hCursor = LoadCursorW(HINSTANCE.NULL, IDC_ARROW),
@@ -262,7 +262,7 @@ internal unsafe class Win32Dispatcher : Dispatcher
             // Output debug messages if requested
             if (DebugInternal && DebugOutputInternal is { } debugOutput)
             {
-                var newMessage = new WndMsg(hWnd, message, wParam, lParam);
+                var newMessage = new Win32Message(hWnd, message, wParam, lParam);
                 if (_previousMessage != newMessage || message == WM_TIMER)
                 {
                     debugOutput(newMessage.ToString());
@@ -364,7 +364,7 @@ internal unsafe class Win32Dispatcher : Dispatcher
     {
         if (ClassAtom != 0)
         {
-            UnregisterClassW((ushort*)ClassAtom, Win32Shared.ModuleHandle);
+            UnregisterClassW((ushort*)ClassAtom, Win32Helper.ModuleHandle);
         }
     }
 

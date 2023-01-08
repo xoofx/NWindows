@@ -259,9 +259,9 @@ public abstract partial class Dispatcher
 
                 // Handle idle
                 // Reset the state of the idle
-                _idleEvent.Continuous = false;
+                _idleEvent.SkipWaitForNextMessage = false;
                 Events.OnDispatcherEvent(_idleEvent);
-                blockOnWait = !_idleEvent.Continuous;
+                blockOnWait = !_idleEvent.SkipWaitForNextMessage;
             }
         }
         finally

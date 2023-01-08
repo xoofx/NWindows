@@ -9,21 +9,10 @@ using static TerraFX.Interop.Windows.Windows;
 
 namespace NWindows.Interop.Win32;
 
-
-internal readonly record struct WndMsg(HWND HWnd, uint Message, WPARAM WParam, LPARAM LParam)
-{
-    public override string ToString()
-    {
-        return $"HWND: 0x{(nint)HWnd:X16} Message: {Win32Helper.GetMessageName(Message)} WPARAM: 0x{WParam.Value:x16} LPARAM: 0x{LParam.Value:x16}";
-    }
-}
-
-internal static class Win32VirtualKeys
-{
-}
-
 internal static class Win32Helper
 {
+    public static readonly unsafe HMODULE ModuleHandle = GetModuleHandleW(null);
+
     public static Color ToColor(COLORREF colorRef)
     {
         return Color.FromArgb(GetRValue(colorRef), GetGValue(colorRef), GetBValue(colorRef));

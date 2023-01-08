@@ -6,5 +6,5 @@ namespace NWindows.Threading.Events;
 
 public sealed record IdleEvent() : DispatcherEvent(DispatcherEventKind.Idle)
 {
-    public bool Continuous { get; set; }
+    public bool SkipWaitForNextMessage { get; set; }
 }

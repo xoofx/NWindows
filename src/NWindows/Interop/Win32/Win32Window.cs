@@ -1796,7 +1796,7 @@ internal unsafe class Win32Window : Window
                 nHeight: height,
                 hWndParent: hWndParent,
                 hMenu: HMENU.NULL,
-                hInstance: Win32Shared.ModuleHandle,
+                hInstance: Win32Helper.ModuleHandle,
                 lpParam: (void*)null
             );
             Win32Dispatcher.CreatedWindowHandle = default;

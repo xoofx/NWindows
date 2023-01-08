@@ -6,8 +6,6 @@ using NWindows.Threading;
 
 namespace NWindows.Input;
 
-// https://learn.microsoft.com/en-us/dotnet/api/system.windows.input.inputdevice?view=windowsdesktop-7.0
-
 /// <summary>
 /// Abstract class that describes an input device.
 /// </summary>
