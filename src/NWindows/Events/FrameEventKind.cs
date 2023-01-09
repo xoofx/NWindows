@@ -37,4 +37,5 @@ public enum FrameEventKind
     ShowInTaskBarChanged,
     DpiChanged,
     DragDropChanged,
+    ClipboardChanged
 }

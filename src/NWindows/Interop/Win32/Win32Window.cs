@@ -644,6 +644,11 @@ internal unsafe class Win32Window : Window
                 UpdateDpi(HIWORD(wParam), in *(RECT*)lParam);
                 result = 0;
                 break;
+
+            case WM_CLIPBOARDUPDATE:
+                OnFrameEvent(FrameEventKind.ClipboardChanged);
+                result = 0;
+                break;
         }
 
         return result;
@@ -1877,6 +1882,9 @@ internal unsafe class Win32Window : Window
 
             UpdateThemeActive();
             UpdateCompositionEnabled();
+
+            // Check for clipboard events
+            AddClipboardFormatListener(HWnd);
 
             // Update the location and size of the window after creation and before making it visible
             if (Win32Helper.TryGetPositionSizeDpiAndRECT(HWnd, Kind == WindowKind.Child, out var bounds))
