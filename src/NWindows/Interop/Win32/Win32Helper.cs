@@ -43,13 +43,14 @@ internal static class Win32Helper
         return (int)dpiX;
     }
 
-    public static unsafe bool TryGetPositionSizeDpiAndRECT(HWND hWnd, out (Point, SizeF, int, RECT) bounds)
+    public static unsafe bool TryGetPositionSizeDpiAndRECT(HWND hWnd, bool isChild, out (Point, SizeF, int, RECT) bounds)
     {
         RECT rect;
-        if (GetWindowRect(hWnd, &rect))
+        var result = isChild ? GetClientRect(GetParent(hWnd), &rect) : GetWindowRect(hWnd, &rect);
+        if (result)
         {
             var dpi = GetDpiForWindowSafe(hWnd);
-            var position = new Point(rect.left, rect.top);
+            var position = isChild ? default : new Point(rect.left, rect.top);
             var widthInPixel = rect.right - rect.left;
             var heightInPixel = rect.bottom - rect.top;
             if (widthInPixel != 0 || heightInPixel != 0)

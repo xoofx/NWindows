@@ -97,6 +97,7 @@ public abstract class Window : DispatcherObject, INativeWindow
     public void CenterToScreen()
     {
         var screen = GetScreen();
+        VerifyNotChild();
         if (screen != null)
         {
             CenterPositionFromBounds(screen.Position, screen.Size);
@@ -140,7 +141,7 @@ public abstract class Window : DispatcherObject, INativeWindow
 
     internal void VerifyPopup()
     {
-        if (Kind != WindowKind.Popup) throw new InvalidOperationException("Window is not a Popup. Expecting the window to be a Popup for this operation");
+        if (Kind != WindowKind.Popup) throw new InvalidOperationException("Window is not a Popup. Expecting the window to be a Popup for this operation.");
     }
 
     internal void VerifyResizeable()
@@ -150,9 +151,14 @@ public abstract class Window : DispatcherObject, INativeWindow
 
     internal void VerifyTopLevel()
     {
-        if (Kind != WindowKind.TopLevel) throw new InvalidOperationException("Window is not a TopLevel. Expecting the window to be a TopLevel for this operation");
+        if (Kind != WindowKind.TopLevel) throw new InvalidOperationException("Window is not a TopLevel. Expecting the window to be a TopLevel for this operation.");
     }
 
+    internal void VerifyNotChild()
+    {
+        if (Kind == WindowKind.Child) throw new InvalidOperationException("Window is not a Child. Cannot perform this operation on this kind of window.");
+    }
+    
     internal void OnWindowEvent(WindowEvent evt)
     {
         Events.OnWindowEvent(this, evt);

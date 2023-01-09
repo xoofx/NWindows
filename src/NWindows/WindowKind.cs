@@ -8,4 +8,5 @@ public enum WindowKind
 {
     TopLevel,
     Popup,
+    Child
 }

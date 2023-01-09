@@ -10,7 +10,7 @@ namespace NWindows;
 /// <summary>
 /// Options for creating a window.
 /// </summary>
-public record WindowCreateOptions
+public sealed record WindowCreateOptions
 {
     /// <summary>
     /// Sets a kind of window. Default is <see cref="WindowKind.TopLevel"/>
@@ -105,7 +105,7 @@ public record WindowCreateOptions
     public bool Minimizable { get; init; } = true;
 
     /// <summary>
-    /// Sets the icon of the window.
+    /// Sets the icon of the window. The default is the default application icon.
     /// </summary>
     public Icon? Icon { get; init; } = null;
 
@@ -142,9 +142,9 @@ public record WindowCreateOptions
     /// </summary>
     public void Verify()
     {
-        if (Kind == WindowKind.Popup && Parent is null)
+        if ((Kind == WindowKind.Popup || Kind == WindowKind.Child) && Parent is null)
         {
-            throw new InvalidOperationException("Invalid options. A Popup window must have a Parent.");
+            throw new InvalidOperationException("Invalid options. A non TopLevel window must have a Parent window.");
         }
     }
 }

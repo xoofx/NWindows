@@ -460,8 +460,10 @@ internal unsafe class Win32Window : Window
 
     public override void CenterToParent()
     {
+        VerifyNotChild();
+
         var parent = Parent;
-        if (parent != null && Win32Helper.TryGetPositionSizeDpiAndRECT((HWND)parent.Handle, out var bounds))
+        if (parent != null && Win32Helper.TryGetPositionSizeDpiAndRECT((HWND)parent.Handle, false, out var bounds))
         {
             CenterPositionFromBounds(bounds.Item1, bounds.Item2);
         }
@@ -1701,7 +1703,7 @@ internal unsafe class Win32Window : Window
         OnFrameEvent(FrameEventKind.ShowInTaskBarChanged);
     }
 
-    private void CreateWindowHandle(in WindowCreateOptions options)
+    private void CreateWindowHandle(WindowCreateOptions options)
     {
         _minimumSize = options.MinimumSize ?? SizeF.Empty;
         _maximumSize = options.MaximumSize ?? SizeF.Empty;
@@ -1712,68 +1714,84 @@ internal unsafe class Win32Window : Window
 
         var positionX = CW_USEDEFAULT;
         var positionY = CW_USEDEFAULT;
-        if (options.Position is { } pos)
-        {
-            positionX = pos.X;
-            positionY = pos.Y;
-        }
-        
         int width;
         int height;
 
-        if (options.Size is { } size)
+        if (options.Kind == WindowKind.Child)
         {
-            width = size.Width;
-            height = size.Height;
-        }
-        else if (Screen.Primary is {} primary)
-        {
-            var factor = options.DefaultSizeFactor;
-            factor.X = Math.Clamp(factor.X, 0.1f, 1.0f);
-            factor.Y = Math.Clamp(factor.X, 0.1f, 1.0f);
+            var parentWindowHandle = options.Parent!.Handle;
 
-            width = (int)(primary.SizeInPixels.Width * factor.X);
-            height = (int)(primary.SizeInPixels.Height * factor.Y);
+            RECT parentRect = default;
+            GetClientRect((HWND)parentWindowHandle, &parentRect);
+            positionX = parentRect.left;
+            positionY = parentRect.top;
+            width = parentRect.right - parentRect.left;
+            height = parentRect.bottom - parentRect.top;
         }
         else
         {
-            width = 640;
-            height = 320;
-        }
 
-        // Popup windows don't have a default size with CreateWindowEx, so force one
-        if (options.Kind == WindowKind.Popup)
-        {
-            if (width == CW_USEDEFAULT)
+            if (options.Position is { } pos)
             {
-                width = 512;
-            }
-            if (height == CW_USEDEFAULT)
-            {
-                height = 256;
-            }
-        }
-
-        var screen = Screen.Primary;
-        if (!options.Decorations && screen != null)
-        {
-            if (width == CW_USEDEFAULT || height == CW_USEDEFAULT)
-            {
-                width = WindowHelper.LogicalToPixel(screen.Size.Width * 0.80f, screen.Dpi.X);
-                height = WindowHelper.LogicalToPixel(screen.Size.Height * 0.80f, screen.Dpi.Y);
+                positionX = pos.X;
+                positionY = pos.Y;
             }
 
-            if (positionX == CW_USEDEFAULT || positionY == CW_USEDEFAULT)
+            if (options.Size is { } size)
             {
-                positionX = WindowHelper.LogicalToPixel(screen.Size.Width * 0.10f, screen.Dpi.X);
-                positionY = WindowHelper.LogicalToPixel(screen.Size.Height * 0.10f, screen.Dpi.Y);
+                width = size.Width;
+                height = size.Height;
             }
-        }
+            else if (Screen.Primary is { } primary)
+            {
+                var factor = options.DefaultSizeFactor;
+                factor.X = Math.Clamp(factor.X, 0.1f, 1.0f);
+                factor.Y = Math.Clamp(factor.X, 0.1f, 1.0f);
 
-        // By default, a top level window is visible on the taskbar
-        if (options.Kind == WindowKind.TopLevel)
-        {
-            _showInTaskBar = options.ShowInTaskBar;
+                width = (int)(primary.SizeInPixels.Width * factor.X);
+                height = (int)(primary.SizeInPixels.Height * factor.Y);
+            }
+            else
+            {
+                width = 640;
+                height = 320;
+            }
+
+            // Popup windows don't have a default size with CreateWindowEx, so force one
+            if (options.Kind == WindowKind.Popup)
+            {
+                if (width == CW_USEDEFAULT)
+                {
+                    width = 512;
+                }
+
+                if (height == CW_USEDEFAULT)
+                {
+                    height = 256;
+                }
+            }
+
+            var screen = Screen.Primary;
+            if (!options.Decorations && screen != null)
+            {
+                if (width == CW_USEDEFAULT || height == CW_USEDEFAULT)
+                {
+                    width = WindowHelper.LogicalToPixel(screen.Size.Width * 0.80f, screen.Dpi.X);
+                    height = WindowHelper.LogicalToPixel(screen.Size.Height * 0.80f, screen.Dpi.Y);
+                }
+
+                if (positionX == CW_USEDEFAULT || positionY == CW_USEDEFAULT)
+                {
+                    positionX = WindowHelper.LogicalToPixel(screen.Size.Width * 0.10f, screen.Dpi.X);
+                    positionY = WindowHelper.LogicalToPixel(screen.Size.Height * 0.10f, screen.Dpi.Y);
+                }
+            }
+
+            // By default, a top level window is visible on the taskbar
+            if (options.Kind == WindowKind.TopLevel)
+            {
+                _showInTaskBar = options.ShowInTaskBar;
+            }
         }
 
         // We are using the hidden Dispatcher HWND for a top level window in order to be able to hide the Window from the taskbar
@@ -1805,15 +1823,14 @@ internal unsafe class Win32Window : Window
             UpdateCompositionEnabled();
 
             // Update the location and size of the window after creation and before making it visible
-            if (Win32Helper.TryGetPositionSizeDpiAndRECT(HWnd, out var bounds))
+            if (Win32Helper.TryGetPositionSizeDpiAndRECT(HWnd, Kind == WindowKind.Child, out var bounds))
             {
                 _position = bounds.Item1;
                 _size = bounds.Item2;
                 UpdateDpi(bounds.Item3, bounds.Item4);
             }
 
-            screen = GetScreen();
-            if (screen != null)
+            if (Kind != WindowKind.Child)
             {
                 switch (options.StartPosition)
                 {
@@ -1838,50 +1855,62 @@ internal unsafe class Win32Window : Window
 
     private static (uint, uint) GetStyleAndStyleExFromOptions(in WindowCreateOptions options)
     {
-        uint style = WS_CLIPSIBLINGS | WS_CLIPCHILDREN | WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU;
+        uint style = WS_CLIPSIBLINGS | WS_CLIPCHILDREN;
         uint styleEx = WS_EX_ACCEPTFILES;
 
         // options.Visible is set after the window is created
 
-        if (options.Resizable)
+        switch (options.Kind)
         {
-            style |= WS_SIZEBOX;
-        }
-
-        if (options.Kind == WindowKind.TopLevel)
-        {
-            if (options.ShowInTaskBar)
+            case WindowKind.TopLevel:
             {
-                styleEx |= WS_EX_APPWINDOW;
+                style |= WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU;
+                if (options.ShowInTaskBar)
+                {
+                    styleEx |= WS_EX_APPWINDOW;
+                }
+
+                break;
             }
-        }
-        else if (options.Kind == WindowKind.Popup)
-        {
-            style |= WS_POPUP;
+            case WindowKind.Popup:
+                style |= WS_POPUP | WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU;
+                break;
+
+            case WindowKind.Child:
+                style |= WS_CHILD;
+                break;
         }
 
-        if (options.Maximizable && !options.MaximumSize.HasValue)
+        if (options.Kind != WindowKind.Child)
         {
-            style |= WS_MAXIMIZEBOX;
-        }
+            if (options.Resizable)
+            {
+                style |= WS_SIZEBOX;
+            }
 
-        if (options.Minimizable)
-        {
-            style |= WS_MINIMIZEBOX;
-        }
+            if (options.Maximizable && !options.MaximumSize.HasValue)
+            {
+                style |= WS_MAXIMIZEBOX;
+            }
 
-        if (options.Maximized && !options.MaximumSize.HasValue)
-        {
-            style |= WS_MAXIMIZE;
-        }
-        else if (options.Minimized)
-        {
-            style |= WS_MINIMIZE;
-        }
+            if (options.Minimizable)
+            {
+                style |= WS_MINIMIZEBOX;
+            }
 
-        if (options.Transparent)
-        {
-            styleEx |= WS_EX_TRANSPARENT;
+            if (options.Maximized && !options.MaximumSize.HasValue)
+            {
+                style |= WS_MAXIMIZE;
+            }
+            else if (options.Minimized)
+            {
+                style |= WS_MINIMIZE;
+            }
+
+            if (options.Transparent)
+            {
+                styleEx |= WS_EX_TRANSPARENT;
+            }
         }
 
         return (style, styleEx);
