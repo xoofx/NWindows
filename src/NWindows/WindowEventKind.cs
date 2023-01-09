@@ -15,6 +15,7 @@ public enum WindowEventKind
     Mouse,
     Close,
     Text,
+    DragDrop,
 
     // TODO: add touch, gesture, clipboard, drag and drop
 }

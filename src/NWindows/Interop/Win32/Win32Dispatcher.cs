@@ -65,6 +65,12 @@ internal unsafe class Win32Dispatcher : Dispatcher
         _mapTimerToTimerId = new Dictionary<DispatcherTimer, nuint>(ReferenceEqualityComparer.Instance);
         _systemEvent = new SystemEvent();
 
+        // Initialize Ole (for drag&drop)
+        // Force to unknown before setting STA to avoid a runtime error
+        Thread.CurrentThread.SetApartmentState(ApartmentState.Unknown);
+        Thread.CurrentThread.SetApartmentState(ApartmentState.STA);
+        Win32DropTarget.OleInitialize(NULL);
+
         // Load the default icon application
         var icon = LoadIconW(Win32Helper.ModuleHandle, IDI_APPLICATION);
 

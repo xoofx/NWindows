@@ -56,6 +56,8 @@ public abstract class Window : DispatcherObject, INativeWindow
 
     public abstract bool Visible { get; set; }
 
+    public abstract bool DragDrop { get; set; }
+
     public abstract bool Resizeable { get; set; }
 
     public abstract bool Maximizeable { get; set; }

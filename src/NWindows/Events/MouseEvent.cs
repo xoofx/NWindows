@@ -9,7 +9,7 @@ namespace NWindows.Events;
 
 public record MouseEvent() : WindowEvent(WindowEventKind.Mouse)
 {
-    public MouseEventKind SubKind;
+    public MouseEventKind MouseKind;
 
     public MouseButton Button;
 

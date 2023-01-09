@@ -52,6 +52,7 @@ internal unsafe class Win32Window : Window
     private char _currentCharHighSurrogate;
     private bool _maximizeable;
     private bool _minimizeable;
+    private bool _allowDragAndDrop;
 
     private Color _backgroundColor;
     private HBRUSH _backgroundColorBrush;
@@ -59,6 +60,7 @@ internal unsafe class Win32Window : Window
     private bool _showInTaskBar;
     private bool _initialShowInTaskBar;
     private Point _dpi;
+    private readonly Win32DropTarget _dropTarget;
 
     public Win32Window(WindowCreateOptions options) : base(options)
     {
@@ -82,7 +84,13 @@ internal unsafe class Win32Window : Window
         }
         _parentWindow = (Win32Window?)options.Parent;
         Kind = options.Kind;
+
+        // Create Handle for this window
         CreateWindowHandle(options);
+
+        // Setup DragDrop
+        _dropTarget = new Win32DropTarget(this);
+        UpdateDragDrop(options.DragDrop, false);
     }
 
     public new Win32Dispatcher Dispatcher => (Win32Dispatcher)base.Dispatcher;
@@ -200,6 +208,24 @@ internal unsafe class Win32Window : Window
             if (_visible != value)
             {
                 UpdateVisible(value);
+            }
+        }
+    }
+
+    public override bool DragDrop
+    {
+        get
+        {
+            VerifyAccess();
+            return _allowDragAndDrop;
+        }
+
+        set
+        {
+            VerifyAccessAndNotDestroyed();
+            if (_allowDragAndDrop != value)
+            {
+                UpdateDragDrop(value, true);
             }
         }
     }
@@ -774,6 +800,11 @@ internal unsafe class Win32Window : Window
         _disposed = true;
         _thisGcHandle.Free();
         _thisGcHandle = default;
+        _dropTarget.Dispose();
+        if (!_isDefaultColorBrush)
+        {
+            DeleteObject(_backgroundColorBrush);
+        }
         Handle = default;
     }
 
@@ -806,6 +837,9 @@ internal unsafe class Win32Window : Window
             _parentWindow!.Enable = true;
             SetActiveWindow(_parentWindow!.HWnd);
         }
+
+        _dropTarget.UnRegister();
+
         OnFrameEvent(FrameEventKind.Destroyed);
     }
 
@@ -1262,7 +1296,7 @@ internal unsafe class Win32Window : Window
             if (_mouseTracked)
             {
                 // Send a mouse enter
-                mouse.SubKind = MouseEventKind.Enter;
+                mouse.MouseKind = MouseEventKind.Enter;
                 OnWindowEvent(mouse);
             }
             _mouseLastX = -1.0f;
@@ -1274,7 +1308,7 @@ internal unsafe class Win32Window : Window
         {
             _mouseTracked = false;
             // Send a mouse leave
-            mouse.SubKind = MouseEventKind.Leave;
+            mouse.MouseKind = MouseEventKind.Leave;
             mouse.Position.X = _mouseLastX;
             mouse.Position.Y = _mouseLastY;
             OnWindowEvent(mouse);
@@ -1291,67 +1325,67 @@ internal unsafe class Win32Window : Window
                 {
                     return 0;
                 }
-                mouse.SubKind = MouseEventKind.Move;
+                mouse.MouseKind = MouseEventKind.Move;
                 break;
             case WM_LBUTTONDOWN:
                 BeginCaptureMouse();
                 mouse.Button = MouseButton.Left;
-                mouse.SubKind = MouseEventKind.ButtonDown;
+                mouse.MouseKind = MouseEventKind.ButtonDown;
                 break;
             case WM_LBUTTONUP:
                 EndCaptureMouse();
                 mouse.Button = MouseButton.Left;
-                mouse.SubKind = MouseEventKind.ButtonUp;
+                mouse.MouseKind = MouseEventKind.ButtonUp;
                 break;
             case WM_LBUTTONDBLCLK:
                 mouse.Button = MouseButton.Left;
-                mouse.SubKind = MouseEventKind.ButtonDoubleClick;
+                mouse.MouseKind = MouseEventKind.ButtonDoubleClick;
                 break;
             case WM_RBUTTONDOWN:
                 BeginCaptureMouse();
                 mouse.Button = MouseButton.Right;
-                mouse.SubKind = MouseEventKind.ButtonDown;
+                mouse.MouseKind = MouseEventKind.ButtonDown;
                 break;
             case WM_RBUTTONUP:
                 EndCaptureMouse();
                 mouse.Button = MouseButton.Right;
-                mouse.SubKind = MouseEventKind.ButtonUp;
+                mouse.MouseKind = MouseEventKind.ButtonUp;
                 break;
             case WM_RBUTTONDBLCLK:
                 mouse.Button = MouseButton.Right;
-                mouse.SubKind = MouseEventKind.ButtonDoubleClick;
+                mouse.MouseKind = MouseEventKind.ButtonDoubleClick;
                 break;
             case WM_MBUTTONDOWN:
                 BeginCaptureMouse();
                 mouse.Button = MouseButton.Middle;
-                mouse.SubKind = MouseEventKind.ButtonDown;
+                mouse.MouseKind = MouseEventKind.ButtonDown;
                 break;
             case WM_MBUTTONUP:
                 EndCaptureMouse();
                 mouse.Button = MouseButton.Middle;
-                mouse.SubKind = MouseEventKind.ButtonUp;
+                mouse.MouseKind = MouseEventKind.ButtonUp;
                 break;
             case WM_MBUTTONDBLCLK:
                 mouse.Button = MouseButton.Middle;
-                mouse.SubKind = MouseEventKind.ButtonDoubleClick;
+                mouse.MouseKind = MouseEventKind.ButtonDoubleClick;
                 break;
             case WM_XBUTTONDOWN:
                 BeginCaptureMouse();
                 mouse.Button = HIWORD(wParam) == XBUTTON1 ? MouseButton.XButton1 : MouseButton.XButton2;
-                mouse.SubKind = MouseEventKind.ButtonDown;
+                mouse.MouseKind = MouseEventKind.ButtonDown;
                 break;
             case WM_XBUTTONUP:
                 EndCaptureMouse();
                 mouse.Button = HIWORD(wParam) == XBUTTON1 ? MouseButton.XButton1 : MouseButton.XButton2;
-                mouse.SubKind = MouseEventKind.ButtonUp;
+                mouse.MouseKind = MouseEventKind.ButtonUp;
                 break;
             case WM_XBUTTONDBLCLK:
                 mouse.Button = HIWORD(wParam) == XBUTTON1 ? MouseButton.XButton1 : MouseButton.XButton2;
-                mouse.SubKind = MouseEventKind.ButtonDoubleClick;
+                mouse.MouseKind = MouseEventKind.ButtonDoubleClick;
                 break;
             case WM_MOUSEWHEEL:
             case WM_MOUSEHWHEEL:
-                mouse.SubKind = MouseEventKind.Wheel;
+                mouse.MouseKind = MouseEventKind.Wheel;
 
                 // Mouse wheel mouse coords are relative to screen, so convert them back to the client area
                 mouse.Position = ScreenToClient(new Point(GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam)));
@@ -1456,6 +1490,28 @@ internal unsafe class Win32Window : Window
     {
         ShowWindow(HWnd, value ? SW.SW_SHOW : SW.SW_HIDE);
         // Notify is handled by WindowProc
+    }
+
+    private void UpdateDragDrop(bool value, bool notify)
+    {
+        var exStyle = GetWindowExStyle(HWnd);
+        if (value)
+        {
+            _dropTarget.Register();
+            exStyle |= WS_EX_ACCEPTFILES;
+        }
+        else
+        {
+            _dropTarget.UnRegister();
+            exStyle &= ~(uint)WS_EX_ACCEPTFILES;
+        }
+        SetWindowLongPtr(HWnd, GWL.GWL_EXSTYLE, (nint)exStyle);
+
+        _allowDragAndDrop = value;
+        if (notify)
+        {
+            OnFrameEvent(FrameEventKind.DragDropChanged);
+        }
     }
 
     private void UpdateResizeable(bool value)
@@ -1856,7 +1912,7 @@ internal unsafe class Win32Window : Window
     private static (uint, uint) GetStyleAndStyleExFromOptions(in WindowCreateOptions options)
     {
         uint style = WS_CLIPSIBLINGS | WS_CLIPCHILDREN;
-        uint styleEx = WS_EX_ACCEPTFILES;
+        uint styleEx = 0;
 
         // options.Visible is set after the window is created
 

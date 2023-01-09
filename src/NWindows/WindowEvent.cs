@@ -13,12 +13,4 @@ public abstract record WindowEvent
     }
 
     public WindowEventKind Kind { get; }
-
-    protected virtual bool PrintMembers(StringBuilder builder)
-    {
-        // Use ToText to make it compatible with NativeAOT - Reflection Free mode
-        builder.Append("Kind = ");
-        builder.Append(Kind.ToText());
-        return true;
-    }
 }

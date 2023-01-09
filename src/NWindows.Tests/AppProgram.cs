@@ -121,17 +121,17 @@ public class AppProgram
                 window.Opacity += 0.1f * mouseEvt.WheelDelta.Y;
             }
 
-            if (mouseEvt.Button == MouseButton.Right && mouseEvt.SubKind == MouseEventKind.ButtonDown)
+            if (mouseEvt.Button == MouseButton.Right && mouseEvt.MouseKind == MouseEventKind.ButtonDown)
             {
                 window.TopMost = !window.TopMost;
             }
 
-            if (mouseEvt.Button == MouseButton.Middle && mouseEvt.SubKind == MouseEventKind.ButtonDown)
+            if (mouseEvt.Button == MouseButton.Middle && mouseEvt.MouseKind == MouseEventKind.ButtonDown)
             {
                 window.Resizeable = !window.Resizeable;
             }
             
-            if (mouseEvt.Button == MouseButton.XButton1 && mouseEvt.SubKind == MouseEventKind.ButtonDown)
+            if (mouseEvt.Button == MouseButton.XButton1 && mouseEvt.MouseKind == MouseEventKind.ButtonDown)
             {
                 if (window.TopLevel)
                 {
@@ -144,7 +144,7 @@ public class AppProgram
                 }
             }
 
-            if (mouseEvt.Button == MouseButton.XButton2 && mouseEvt.SubKind == MouseEventKind.ButtonDown)
+            if (mouseEvt.Button == MouseButton.XButton2 && mouseEvt.MouseKind == MouseEventKind.ButtonDown)
             {
                 window.Close();
             }

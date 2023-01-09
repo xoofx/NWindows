@@ -4,19 +4,33 @@ using NWindows.Events;
 using NWindows.Input;
 using NWindows.Threading;
 
-//Dispatcher.Current.EnableTrace = true;
-//Dispatcher.Current.TraceOutput = Console.Out.WriteLine;
+Dispatcher.Current.EnableDebug = true;
+//Dispatcher.Current.DebugOutput = Console.Out.WriteLine;
 
-var window = Window.Create(new WindowCreateOptions()
+var window = Window.Create(new ()
 {
     Title = "Hello World",
     BackgroundColor = Color.DarkSlateGray,
-    StartPosition = WindowStartPosition.CenterScreen
+    StartPosition = WindowStartPosition.CenterScreen,
+    DragDrop = true
 });
+
+//var windowChild = Window.Create(new()
+//{
+//    Kind = WindowKind.Child,
+//    BackgroundColor = Color.Red,
+//    Parent = window,
+//});
+
 
 window.Events.All += EventsOnAll;
 
+Point deltaMousePosition = default;
+
+//windowChild.Events.All += EventsOnAllChild;
+
 Dispatcher.Current.Run();
+
 
 static void EventsOnAll(Window window, WindowEvent evt)
 {
@@ -34,3 +48,26 @@ static void EventsOnAll(Window window, WindowEvent evt)
         }
     }
 }
+
+
+
+//void EventsOnAllChild(Window w, WindowEvent evt)
+//{
+//    Console.WriteLine($"Child {evt}");
+
+//    if (evt is MouseEvent mouseEvt)
+//    {
+//        var mousePositionOnScreen = Mouse.Position;
+
+//        if (mouseEvt.Button == MouseButton.Left)
+//        {
+//            //window.Title = $"{window.Kind} Pressed: {_eventId}";
+//            deltaMousePosition = new Point(windowChild.Position.X - mousePositionOnScreen.X, windowChild.Position.Y - mousePositionOnScreen.Y);
+//        }
+//        if ((mouseEvt.Pressed & MouseButtonFlags.Left) != 0)
+//        {
+//            windowChild.Position = new Point(mousePositionOnScreen.X + deltaMousePosition.X, mousePositionOnScreen.Y + deltaMousePosition.Y);
+//        }
+//    }
+
+//}

@@ -118,6 +118,11 @@ public sealed record WindowCreateOptions
     /// Only valid for a top level window, the window will be shown in the task bar when created. Default is <c>true</c>.
     /// </summary>
     public bool ShowInTaskBar { get; init; } = true;
+    
+    /// <summary>
+    /// Sets whether drag and drop for files is supported for the window. Default is <c>false</c>.
+    /// </summary>
+    public bool DragDrop { get; init; } = false;
 
     /// <summary>
     /// Sets the window event delegate that will receive events.

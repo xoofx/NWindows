@@ -3,13 +3,14 @@
 // See license.txt file in the project root for full license information.
 
 using System.Drawing;
+using System.Runtime.InteropServices;
 using TerraFX.Interop.Windows;
 using static TerraFX.Interop.Windows.WM;
 using static TerraFX.Interop.Windows.Windows;
 
 namespace NWindows.Interop.Win32;
 
-internal static class Win32Helper
+internal static partial class Win32Helper
 {
     public static readonly unsafe HMODULE ModuleHandle = GetModuleHandleW(null);
 
@@ -25,6 +26,11 @@ internal static class Win32Helper
     
     public static unsafe int GetDpiForWindowSafe(HWND hWnd)
     {
+        while ((GetWindowStyle(hWnd) & WS.WS_CHILD) != 0)
+        {
+            hWnd = GetParent(hWnd);
+        }
+
         // Try to get the Dpi from the window, or from the monitor or from the system
         var dpiX = Windows.GetDpiForWindow(hWnd);
         if (dpiX == 0)
