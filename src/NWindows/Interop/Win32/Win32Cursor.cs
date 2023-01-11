@@ -10,11 +10,11 @@ using static TerraFX.Interop.Windows.IDC;
 
 namespace NWindows.Interop.Win32;
 
-internal unsafe class Win32CursorManager : CursorManager
+internal unsafe class Win32Cursor : CursorImpl
 {
     private readonly Cursor?[] _cursors;
 
-    public Win32CursorManager()
+    public Win32Cursor()
     {
         _cursors = new Cursor?[(int)CursorType.Hand + 1];
     }

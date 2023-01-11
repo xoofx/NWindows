@@ -10,7 +10,7 @@ namespace NWindows.Input;
 
 public sealed class Cursor
 {
-    private static readonly CursorManager Manager = GetCursorManager();
+    private static readonly CursorImpl Impl = GetCursorManager();
 
     internal Cursor(CursorType cursorType, nint handle)
     {
@@ -49,11 +49,11 @@ public sealed class Cursor
 
     public static Cursor Hand => CursorHand.Instance;
 
-    public static Cursor LoadFromFile(string fileName) => Manager.LoadFromFile(fileName);
+    public static Cursor LoadFromFile(string fileName) => Impl.LoadFromFile(fileName);
 
-    private static CursorManager GetCursorManager()
+    private static CursorImpl GetCursorManager()
     {
-        if (OperatingSystem.IsWindows()) return new Win32CursorManager();
+        if (OperatingSystem.IsWindows()) return new Win32Cursor();
         throw new PlatformNotSupportedException();
     }
 
@@ -62,61 +62,61 @@ public sealed class Cursor
 
     private static class CursorNone
     {
-        public static readonly Cursor Instance = Manager.GetCursor(CursorType.None);
+        public static readonly Cursor Instance = Impl.GetCursor(CursorType.None);
     }
 
     private static class CursorArrow
     {
-        public static readonly Cursor Instance = Manager.GetCursor(CursorType.Arrow);
+        public static readonly Cursor Instance = Impl.GetCursor(CursorType.Arrow);
     }
 
     private static class CursorIBeam
     {
-        public static readonly Cursor Instance = Manager.GetCursor(CursorType.IBeam);
+        public static readonly Cursor Instance = Impl.GetCursor(CursorType.IBeam);
     }
 
     private static class CursorWait
     {
-        public static readonly Cursor Instance = Manager.GetCursor(CursorType.Wait);
+        public static readonly Cursor Instance = Impl.GetCursor(CursorType.Wait);
     }
 
     private static class CursorCross
     {
-        public static readonly Cursor Instance = Manager.GetCursor(CursorType.Cross);
+        public static readonly Cursor Instance = Impl.GetCursor(CursorType.Cross);
     }
 
     private static class CursorSizeNWSE
     {
-        public static readonly Cursor Instance = Manager.GetCursor(CursorType.SizeNWSE);
+        public static readonly Cursor Instance = Impl.GetCursor(CursorType.SizeNWSE);
     }
 
     private static class CursorSizeNESW
     {
-        public static readonly Cursor Instance = Manager.GetCursor(CursorType.SizeNESW);
+        public static readonly Cursor Instance = Impl.GetCursor(CursorType.SizeNESW);
     }
 
     private static class CursorSizeWE
     {
-        public static readonly Cursor Instance = Manager.GetCursor(CursorType.SizeWE);
+        public static readonly Cursor Instance = Impl.GetCursor(CursorType.SizeWE);
     }
 
     private static class CursorSizeNS
     {
-        public static readonly Cursor Instance = Manager.GetCursor(CursorType.SizeNS);
+        public static readonly Cursor Instance = Impl.GetCursor(CursorType.SizeNS);
     }
 
     private static class CursorSizeAll
     {
-        public static readonly Cursor Instance = Manager.GetCursor(CursorType.SizeAll);
+        public static readonly Cursor Instance = Impl.GetCursor(CursorType.SizeAll);
     }
 
     private static class CursorNo
     {
-        public static readonly Cursor Instance = Manager.GetCursor(CursorType.No);
+        public static readonly Cursor Instance = Impl.GetCursor(CursorType.No);
     }
 
     private static class CursorHand
     {
-        public static readonly Cursor Instance = Manager.GetCursor(CursorType.Hand);
+        public static readonly Cursor Instance = Impl.GetCursor(CursorType.Hand);
     }
 }

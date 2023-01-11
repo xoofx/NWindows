@@ -4,7 +4,7 @@
 
 namespace NWindows.Input;
 
-internal abstract class CursorManager
+internal abstract class CursorImpl
 {
     public abstract Cursor GetCursor(CursorType cursorType);
 
