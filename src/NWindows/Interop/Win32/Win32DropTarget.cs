@@ -38,7 +38,7 @@ internal sealed unsafe partial class Win32DropTarget : IDisposable
     {
         if (_registered) return;
 
-        var result = (HRESULT)RegisterDragDrop(_window.HWnd, _dropTarget);
+        var result = (HRESULT)Win32Ole.RegisterDragDrop(_window.HWnd, (nint)_dropTarget);
         if (result.SUCCEEDED)
         {
             _registered = true;
@@ -48,7 +48,7 @@ internal sealed unsafe partial class Win32DropTarget : IDisposable
     public void UnRegister()
     {
         if (_registered) return;
-        _ = RevokeDragDrop(_window.HWnd);
+        _ = Win32Ole.RevokeDragDrop(_window.HWnd);
     }
 
     internal HRESULT DragEnter(IDataObject* pDataObj, int grfKeyState, POINTL pt, int* pdwEffect)
@@ -61,36 +61,6 @@ internal sealed unsafe partial class Win32DropTarget : IDisposable
     {
         RaiseEvent(DragDropKind.Over, null, grfKeyState, pt, pdwEffect);
         return S.S_OK;
-    }
-    
-    private static void GetFiles(IDataObject* pDataObj, List<string> files)
-    {
-        FORMATETC fmte = default;
-        fmte.cfFormat = CF.CF_HDROP;
-        fmte.dwAspect = 1; // DVASPECT_CONTENT
-        fmte.lindex = -1;
-        fmte.tymed = (int)TYMED.TYMED_HGLOBAL;
-
-
-        char* path = stackalloc char[MAX.MAX_PATH];
-
-        STGMEDIUM stgm = default;
-        if (pDataObj->GetData(&fmte, &stgm).SUCCEEDED)
-        {
-            var hDrop = new HDROP(stgm.hGlobal);
-
-            var fileCount = DragQueryFileW(hDrop, uint.MaxValue, null, 0);
-            for (uint i = 0; i < fileCount; i++)
-            {
-                var cch = DragQueryFileW(hDrop, i, (ushort*)path, MAX.MAX_PATH);
-                if (cch > 0 && cch < MAX.MAX_PATH)
-                {
-                    files.Add(new string(path, 0, (int)cch));
-                }
-            }
-
-            ReleaseStgMedium(&stgm);
-        }
     }
 
     private HRESULT DragLeave()
@@ -115,36 +85,44 @@ internal sealed unsafe partial class Win32DropTarget : IDisposable
         _dragDropEvent.Effects = FromEffects(*pdwEffect);
         _dragDropEvent.Position = _window.ScreenToClient(new Point(pt.x, pt.y));
         _dragDropEvent.KeyStates = GetKeyStates(grfKeyState);
+        _dragDropEvent.Data = null;
 
         if (pDataObj != null)
         {
-            _dragDropEvent.Files.Clear();
-            GetFiles(pDataObj, _dragDropEvent.Files);
+            _dragDropEvent.Data = Win32Ole.GetDropFiles(pDataObj);
+            _dragDropEvent.Effects = _dragDropEvent.Effects;
         }
 
-        _window.OnWindowEvent(_dragDropEvent);
+        try
+        {
+            _window.OnWindowEvent(_dragDropEvent);
 
-        *pdwEffect = _dragDropEvent.Handled ? ToEffects(_dragDropEvent.Effects) : DROPEFFECT_NONE;
+            *pdwEffect = _dragDropEvent.Handled ? ToEffects(_dragDropEvent.Effects) : DROPEFFECT_NONE;
+        }
+        finally
+        {
+            // We never keep the data in memory
+            _dragDropEvent.Data = null;
+        }
     }
 
-
-    private static DragDropEffects FromEffects(int dwEffects)
+    private static DataTransferEffects FromEffects(int dwEffects)
     {
-        var effect = DragDropEffects.None;
-        if ((dwEffects & DROPEFFECT_COPY) != 0) effect |= DragDropEffects.Copy;
-        if ((dwEffects & DROPEFFECT_MOVE) != 0) effect |= DragDropEffects.Move;
-        if ((dwEffects & DROPEFFECT_LINK) != 0) effect |= DragDropEffects.Link;
-        if ((dwEffects & unchecked((int)DROPEFFECT_SCROLL)) != 0) effect |= DragDropEffects.Scroll;
+        var effect = DataTransferEffects.None;
+        if ((dwEffects & DROPEFFECT_COPY) != 0) effect |= DataTransferEffects.Copy;
+        if ((dwEffects & DROPEFFECT_MOVE) != 0) effect |= DataTransferEffects.Move;
+        if ((dwEffects & DROPEFFECT_LINK) != 0) effect |= DataTransferEffects.Link;
+        if ((dwEffects & unchecked((int)DROPEFFECT_SCROLL)) != 0) effect |= DataTransferEffects.Scroll;
         return effect;
     }
 
-    private static int ToEffects(DragDropEffects effects)
+    private static int ToEffects(DataTransferEffects effects)
     {
         int dwEffects = 0;
-        if ((effects & DragDropEffects.Copy) != 0) dwEffects |= DROPEFFECT_COPY;
-        if ((effects & DragDropEffects.Move) != 0) dwEffects |= DROPEFFECT_MOVE;
-        if ((effects & DragDropEffects.Link) != 0) dwEffects |= DROPEFFECT_LINK;
-        if ((effects & DragDropEffects.Scroll) != 0) dwEffects |= unchecked((int)DROPEFFECT_SCROLL);
+        if ((effects & DataTransferEffects.Copy) != 0) dwEffects |= DROPEFFECT_COPY;
+        if ((effects & DataTransferEffects.Move) != 0) dwEffects |= DROPEFFECT_MOVE;
+        if ((effects & DataTransferEffects.Link) != 0) dwEffects |= DROPEFFECT_LINK;
+        if ((effects & DataTransferEffects.Scroll) != 0) dwEffects |= unchecked((int)DROPEFFECT_SCROLL);
         return dwEffects;
     }
 
@@ -160,19 +138,7 @@ internal sealed unsafe partial class Win32DropTarget : IDisposable
         return key;
     }
 
-    private const string LibraryOle32 = "Ole32";
 
-    [LibraryImport(LibraryOle32, EntryPoint = nameof(RegisterDragDrop))]
-    private static partial int RegisterDragDrop(nint hWnd, IDropTarget* pDropTarget);
-    
-    [LibraryImport(LibraryOle32, EntryPoint = nameof(RevokeDragDrop))]
-    private static partial int RevokeDragDrop(nint hWnd);
-
-    [LibraryImport(LibraryOle32, EntryPoint = nameof(OleInitialize))]
-    public static partial int OleInitialize(nint pvReserved);
-    
-    [LibraryImport(LibraryOle32, EntryPoint = nameof(ReleaseStgMedium))]
-    private static partial void ReleaseStgMedium(STGMEDIUM* p);
 
     private unsafe struct IDropTarget
     {

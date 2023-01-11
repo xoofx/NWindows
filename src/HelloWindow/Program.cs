@@ -4,6 +4,43 @@ using NWindows.Events;
 using NWindows.Input;
 using NWindows.Threading;
 
+//var pngData = Clipboard.GetData(DataFormats.Png);
+
+var files = Clipboard.GetData(DataFormats.File);
+if (files != null)
+{
+    Console.WriteLine($"Requesting files {files.PreferredDataTransferEffects}");
+    Clipboard.Notify(DataTransferResult.Copy);
+}
+
+var formats = Clipboard.GetDataFormats();
+
+foreach (var format in formats)
+{
+    Console.WriteLine(format);
+}
+
+Clipboard.SetData(DataFormats.File, new FileTransferList() { "C:\\code\\InsideClipboard\\readme.txt"});
+var list = Clipboard.GetData(DataFormats.File);
+
+Clipboard.SetData(DataFormats.UnicodeText, "Hello World 1");
+var text1 = Clipboard.GetData(DataFormats.UnicodeText);
+
+Clipboard.SetData(DataFormats.Text, "Hello World 2");
+var text2 = Clipboard.GetData(DataFormats.Text);
+
+Clipboard.SetData(new ClipboardData()
+{
+    {DataFormats.Html, "<p>Hello World</p>"},
+    {DataFormats.UnicodeText, "Hello World"}
+});
+var html = Clipboard.GetData(DataFormats.Html);
+
+var customFormat = Clipboard.Register<string>("NWindows.HelloWorld.Clipboard");
+Clipboard.SetData(customFormat, "Hello World From Custom Format");
+var test3 = Clipboard.GetData(customFormat);
+
+
 Dispatcher.Current.EnableDebug = true;
 //Dispatcher.Current.DebugOutput = Console.Out.WriteLine;
 
@@ -45,6 +82,23 @@ static void EventsOnAll(Window window, WindowEvent evt)
         else
         {
             Mouse.SetCursor(Cursor.Arrow);
+        }
+    }
+    else if (evt is FrameEvent frameEvent)
+    {
+        if (frameEvent.FrameKind == FrameEventKind.ClipboardChanged)
+        {
+            var formats = Clipboard.GetDataFormats();
+            Console.WriteLine(string.Join(",", formats));
+
+            foreach (var format in formats)
+            {
+                if (format.IsSupported && format is DataFormat<string> stringFormat)
+                {
+                    var text = Clipboard.GetData(stringFormat);
+                    Console.WriteLine(text);
+                }
+            }
         }
     }
 }

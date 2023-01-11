@@ -2,15 +2,19 @@
 // Licensed under the BSD-Clause 2 license.
 // See license.txt file in the project root for full license information.
 
+using System;
 using System.Drawing;
+using System.IO;
 using System.Runtime.InteropServices;
+using System.Text;
 using TerraFX.Interop.Windows;
 using static TerraFX.Interop.Windows.WM;
 using static TerraFX.Interop.Windows.Windows;
+using System.Threading;
 
 namespace NWindows.Interop.Win32;
 
-internal static partial class Win32Helper
+internal static class Win32Helper
 {
     public static readonly unsafe HMODULE ModuleHandle = GetModuleHandleW(null);
 
@@ -23,7 +27,220 @@ internal static partial class Win32Helper
     {
         return RGB(color.R, color.G, color.B);
     }
-    
+
+    public static unsafe HGLOBAL AllocHGlobalMoveableWithValue<T>(T value) where T: unmanaged
+    {
+        var hGlobal = GlobalAlloc(GMEM.GMEM_MOVEABLE | GMEM.GMEM_ZEROINIT, (nuint)sizeof(T));
+        if (hGlobal == 0)
+        {
+            throw new OutOfMemoryException();
+        }
+        *(T*)GlobalLock(hGlobal) = value;
+        GlobalUnlock(hGlobal);
+        return hGlobal;
+    }
+
+    public static HGLOBAL AllocHGlobalMoveable(int size)
+    {
+        var hGlobal = GlobalAlloc(GMEM.GMEM_MOVEABLE | GMEM.GMEM_ZEROINIT, (nuint)size);
+        if (hGlobal == 0)
+        {
+            throw new OutOfMemoryException();
+        }
+        return hGlobal;
+    }
+
+    public static bool TryRepeatedly(Func<bool> aFunction)
+    {
+        // From https://github.com/mozilla/gecko-dev/blob/29223495675a5b341bf5ae3be82fbe94e7a97f2d/widget/windows/nsClipboard.cpp#L427-L448
+        const int numberOfTries = 3;
+        const int delayInMs = 3;
+
+        for (int i = 0; i < numberOfTries; ++i)
+        {
+            if (aFunction())
+            {
+                return true;
+            }
+
+            Thread.Sleep(delayInMs);
+        }
+
+        return false;
+    }
+
+    public static unsafe byte[] GetGlobalData(HGLOBAL hGlobal)
+    {
+        var pMem = GlobalLock(hGlobal);
+        if (pMem == null) return Array.Empty<byte>();
+
+        try
+        {
+            var size = GlobalSize(hGlobal);
+            if (size == 0 || size > (nuint)int.MaxValue) return Array.Empty<byte>();
+
+            var data = new byte[size];
+            Marshal.Copy((nint)pMem, data, 0, (int)size);
+            return data;
+        }
+        finally
+        {
+            GlobalUnlock(hGlobal);
+        }
+    }
+
+    public static unsafe string? GetGlobalDataAsUnicodeString(HGLOBAL hGlobal)
+    {
+        var pMem = GlobalLock(hGlobal);
+        if (pMem == null) return null;
+
+        try
+        {
+            var size = GlobalSize(hGlobal);
+            if (size == 0 || size > (nuint)int.MaxValue) return null;
+
+            return new string((char*)pMem);
+        }
+        finally
+        {
+            GlobalUnlock(hGlobal);
+        }
+    }
+
+    public static unsafe string? GetGlobalDataAsAnsiString(HGLOBAL hGlobal)
+    {
+        var pMem = GlobalLock(hGlobal);
+        if (pMem == null) return null;
+
+        try
+        {
+            var size = GlobalSize(hGlobal);
+            if (size == 0 || size > (nuint)int.MaxValue) return null;
+
+            return new string((sbyte*)pMem);
+        }
+        finally
+        {
+            GlobalUnlock(hGlobal);
+        }
+    }
+
+
+    public static unsafe string? GetGlobalDataAsUTF8(HGLOBAL hGlobal)
+    {
+        var pMem = GlobalLock(hGlobal);
+        if (pMem == null) return null;
+
+        try
+        {
+            var size = GlobalSize(hGlobal);
+            if (size == 0 || size > (nuint)int.MaxValue) return null;
+
+            return Encoding.UTF8.GetString((byte*)pMem, (int)size);
+        }
+        finally
+        {
+            GlobalUnlock(hGlobal);
+        }
+    }
+
+    public static unsafe string? GetGlobalDataAsHtmlFormat(HGLOBAL hGlobal)
+    {
+        var pMem = GlobalLock(hGlobal);
+        if (pMem == null) return null;
+
+        try
+        {
+            var size = GlobalSize(hGlobal);
+            if (size == 0 || size > (nuint)int.MaxValue) return null;
+
+            return ParseHtmlFormat(new Span<byte>(pMem, (int)size));
+        }
+        finally
+        {
+            GlobalUnlock(hGlobal);
+        }
+    }
+
+    private static string ParseHtmlFormat(Span<byte> bytes)
+    {
+        // https://learn.microsoft.com/en-us/windows/win32/dataxchg/html-clipboard-format
+        int index = 0;
+        int startFragment = -1;
+        int endFragment = -1;
+        while (TryReadLine(bytes, ref index, out var line))
+        {
+            var splitIndex = line.IndexOf((byte)':');
+            if (splitIndex < 0) break;
+
+            var name = line.Slice(0, splitIndex);
+            var value = line.Slice(splitIndex + 1);
+
+            if ("StartFragment"u8.SequenceCompareTo(name) == 0)
+            {
+                startFragment = ParseNumber(value);
+            }
+            else if ("EndFragment"u8.SequenceCompareTo(name) == 0)
+            {
+                endFragment = ParseNumber(value);
+            }
+
+            if (startFragment > 0 && endFragment > 0 && endFragment > startFragment && endFragment < bytes.Length)
+            {
+                return Encoding.UTF8.GetString(bytes.Slice(startFragment, endFragment - startFragment));
+            }
+        }
+
+        return string.Empty;
+    }
+
+    private static int ParseNumber(Span<byte> bytes)
+    {
+        int value = 0;
+        for (int i = 0; i < bytes.Length; i++)
+        {
+            var c = bytes[i];
+            if (c >= (byte)'0' && c <= (byte)'9')
+            {
+                value = value * 10 + (bytes[i] - (byte)'0');
+            }
+            else
+            {
+                break;
+            }
+        }
+        return value;
+    }
+
+    private static bool TryReadLine(Span<byte> bytes, ref int index, out Span<byte> line)
+    {
+        line = default;
+        if (index == bytes.Length) return false;
+        
+        for (int i = index; i < bytes.Length; i++)
+        {
+            var c = bytes[i];
+            if (c == '\n' || c == '\r')
+            {
+                int advance = c == '\r' && i + 1 < bytes.Length && bytes[i + 1] == '\n' ? 2 : 1;
+                line = bytes.Slice(index, i - index);
+                index = i + advance;
+                return true;
+            }
+        }
+
+        line = bytes.Slice(index, bytes.Length - index);
+        index = bytes.Length;
+        return true;
+    }
+
+
+
+
+
+
+
+
     public static unsafe int GetDpiForWindowSafe(HWND hWnd)
     {
         while ((GetWindowStyle(hWnd) & WS.WS_CHILD) != 0)

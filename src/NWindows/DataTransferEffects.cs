@@ -10,7 +10,7 @@ namespace NWindows;
 /// An enumeration of the DragDropEffects that can be notified to the dragsource.
 /// </summary>
 [Flags]
-public enum DragDropEffects
+public enum DataTransferEffects
 {
     /// <summary>
     /// A drop would not be allowed. 

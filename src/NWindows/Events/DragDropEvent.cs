@@ -2,7 +2,6 @@
 // Licensed under the BSD-Clause 2 license.
 // See license.txt file in the project root for full license information.
 
-using System.Collections.Generic;
 using System.Drawing;
 using System.Text;
 
@@ -14,11 +13,11 @@ public record DragDropEvent() : WindowEvent(WindowEventKind.DragDrop)
 
     public DragDropKeyStates KeyStates;
 
+    public DataTransferEffects Effects;
+
     public PointF Position;
-
-    public DragDropEffects Effects;
-
-    public List<string> Files { get; } = new();
+    
+    public object? Data;
 
     public bool Handled;
 
@@ -31,16 +30,22 @@ public record DragDropEvent() : WindowEvent(WindowEventKind.DragDrop)
         builder.Append(nameof(DragDropKind)).Append(" = ").Append(DragDropKind).Append(", ");
         builder.Append(nameof(KeyStates)).Append(" = ").Append(KeyStates).Append(", ");
         builder.Append(nameof(Position)).Append(" = ").Append(Position).Append(", ");
-        builder.Append(nameof(Effects)).Append(" = ").Append(Effects).Append(", ");
-        builder.Append(nameof(Files)).Append(" = [ ");
-        for (var i = 0; i < Files.Count; i++)
+        builder.Append(nameof(Data)).Append(" = ");
+        if (Data is FileTransferList list)
         {
-            var file = Files[i];
-            if (i > 0) builder.Append(", ");
-            builder.Append(file);
+            builder.Append(list);
+        }
+        else if (Data is byte[] array)
+        {
+            builder.Append("byte[").Append(array.Length).Append(']');
+        }
+        else
+        {
+            builder.Append(Data);
         }
 
-        builder.Append("], ");
+        builder.Append(", ");
+
         builder.Append(nameof(Handled)).Append(" = ").Append(Handled);
         return true;
     }

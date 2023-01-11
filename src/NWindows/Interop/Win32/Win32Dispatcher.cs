@@ -67,9 +67,7 @@ internal unsafe class Win32Dispatcher : Dispatcher
 
         // Initialize Ole (for drag&drop)
         // Force to unknown before setting STA to avoid a runtime error
-        Thread.CurrentThread.SetApartmentState(ApartmentState.Unknown);
-        Thread.CurrentThread.SetApartmentState(ApartmentState.STA);
-        Win32DropTarget.OleInitialize(NULL);
+        Win32Ole.Initialize();
 
         // Load the default icon application
         var icon = LoadIconW(Win32Helper.ModuleHandle, IDI_APPLICATION);
