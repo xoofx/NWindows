@@ -178,7 +178,7 @@ public class AppProgram
 
     static void DisplayScreens()
     {
-        foreach (var screen in Screen.Items)
+        foreach (var screen in Screen.List)
         {
             Console.WriteLine(screen);
         }

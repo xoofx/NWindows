@@ -18,6 +18,11 @@ internal static class Win32Helper
 {
     public static readonly unsafe HMODULE ModuleHandle = GetModuleHandleW(null);
 
+    public static Rectangle ToRectangle(this RECT rect)
+    {
+        return new Rectangle(rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top);
+    }
+
     public static Color ToColor(COLORREF colorRef)
     {
         return Color.FromArgb(GetRValue(colorRef), GetGValue(colorRef), GetBValue(colorRef));
@@ -259,26 +264,24 @@ internal static class Win32Helper
         return (int)dpiX;
     }
 
-    public static unsafe bool TryGetPositionSizeDpiAndRECT(HWND hWnd, bool isChild, out (Point, SizeF, int, RECT) bounds)
+    public static unsafe bool TryGetWindowPositionAndSize(HWND hWnd, out Rectangle rectangle)
     {
         RECT rect;
+        bool isChild = (GetWindowStyle(hWnd) & WS.WS_CHILD) != 0;
         var result = isChild ? GetClientRect(GetParent(hWnd), &rect) : GetWindowRect(hWnd, &rect);
         if (result)
         {
-            var dpi = GetDpiForWindowSafe(hWnd);
             var position = isChild ? default : new Point(rect.left, rect.top);
             var widthInPixel = rect.right - rect.left;
             var heightInPixel = rect.bottom - rect.top;
             if (widthInPixel != 0 || heightInPixel != 0)
             {
-                var dpiScale = new DpiScale(dpi, dpi);
-                var size = dpiScale.PixelToLogical(new Size(widthInPixel, heightInPixel));
-                bounds = (position, size, dpi, rect);
+                rectangle = new Rectangle(rect.left, rect.right, widthInPixel, heightInPixel);
                 return true;
             }
         }
 
-        bounds = default;
+        rectangle = default;
         return false;
     }
 

@@ -42,7 +42,9 @@ public abstract class Window : DispatcherObject, INativeWindow
 
     public abstract bool HasDecorations { get; set; }
 
-    public abstract DpiScale DpiScale { get; set; }
+    public abstract Dpi Dpi { get; set; }
+    
+    public abstract DpiMode DpiMode { get; set; }
 
     public abstract Color BackgroundColor { get; set; }
 
@@ -104,7 +106,7 @@ public abstract class Window : DispatcherObject, INativeWindow
         VerifyNotChild();
         if (screen != null)
         {
-            CenterPositionFromBounds(screen.Position, screen.Size);
+            CenterPositionFromBounds(screen.Bounds);
         }
     }
 
@@ -181,23 +183,26 @@ public abstract class Window : DispatcherObject, INativeWindow
         return _paintEvent.Handled;
     }
 
-    internal void CenterPositionFromBounds(Point position, SizeF size)
+    internal void CenterPositionFromBounds(Rectangle bounds)
     {
-        var currentSize = Size;
+        var position = bounds.Location;
+        var size = bounds.Size;
+
+        var currentSize = Dpi.LogicalToPixel(Size);
         if (currentSize.IsEmpty) return;
 
-        var dpi = DpiScale;
+        var dpi = Dpi;
         bool changed = false;
         var currentPosition = Position;
         if (currentSize.Width <= size.Width)
         {
-            currentPosition.X = position.X + (int)(dpi.ScaleLogicalToPixel.X * (size.Width - currentSize.Width) / 2);
+            currentPosition.X = position.X + (size.Width - currentSize.Width) / 2;
             changed = true;
         }
 
         if (currentSize.Height <= size.Height)
         {
-            currentPosition.Y = position.Y + (int)(dpi.ScaleLogicalToPixel.Y * (size.Height - currentSize.Height) / 2);
+            currentPosition.Y = position.Y + (size.Height - currentSize.Height) / 2;
             changed = true;
         }
 

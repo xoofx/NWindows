@@ -41,6 +41,16 @@ internal unsafe class Win32Dispatcher : Dispatcher
     private readonly uint WM_DISPATCHER_QUEUE;
     private readonly SystemEvent _systemEvent;
 
+    private static readonly object GlobalLock = new object();
+
+    /// <summary>
+    /// Set by Win32Window if the current activated window is in exclusive fullscreen
+    /// </summary>
+    internal bool HasActiveExclusiveFullScreenWindow;
+
+    [ThreadStatic]
+    private static HHOOK _keyboardHook;
+
     /// <summary>
     /// Windows 10 1607 => 10.0.14393
     /// </summary>
@@ -68,6 +78,17 @@ internal unsafe class Win32Dispatcher : Dispatcher
         // Initialize Ole (for drag&drop)
         // Force to unknown before setting STA to avoid a runtime error
         Win32Ole.Initialize();
+
+        // Initialization of the keyboard hook only on the dispatcher thread
+        lock (GlobalLock)
+        {
+            if (_keyboardHook == 0)
+            {
+                _keyboardHook = SetWindowsHookExW(WH.WH_KEYBOARD_LL, &LowLevelKeyboardProc, Win32Helper.ModuleHandle, 0);
+            }
+        }
+
+        // TODO: call UnhookWindowsHookEx 
 
         // Load the default icon application
         var icon = LoadIconW(Win32Helper.ModuleHandle, IDI_APPLICATION);
@@ -411,5 +432,36 @@ internal unsafe class Win32Dispatcher : Dispatcher
         {
             window.OnWindowEvent(_systemEvent);
         }
+    }
+
+    [UnmanagedCallersOnly]
+    private static LRESULT LowLevelKeyboardProc(int nCode, WPARAM wParam, LPARAM lParam)
+    {
+        // From https://learn.microsoft.com/en-us/windows/win32/dxtecharts/disabling-shortcut-keys-in-games
+        // We want to make sure that the Win keys are not going to be able to modify the position of a fullscreen window
+        // So this hook will discard the LWIN/RWIN keys if we have such a window active
+        var keyboardHook = _keyboardHook;
+        if (nCode == HC_ACTION)
+        {
+            var currentDispatcher = (Win32Dispatcher?)TlsCurrentDispatcher;
+            Console.WriteLine($"HC_ACTION {Win32Helper.GetMessageName((uint)wParam)} HasActiveExclusiveScreenWindow: {currentDispatcher?.HasActiveExclusiveFullScreenWindow ?? false}");
+            var p = (KBDLLHOOKSTRUCT*)lParam;
+            switch ((int)wParam)
+            {
+                case WM_KEYDOWN:
+                case WM_KEYUP:
+                {
+                    // Prevent Win keys to modify the window state
+                    // Note that this will not block the Xbox Game Bar hotkeys (Win+G, Win+Alt+R, etc.)
+                    if (currentDispatcher != null && currentDispatcher.HasActiveExclusiveFullScreenWindow && (p->vkCode == VK.VK_LWIN) || (p->vkCode == VK.VK_RWIN))
+                    {
+                        return 1;
+                    }
+                    break;
+                }
+            }
+        }
+
+        return CallNextHookEx(keyboardHook, nCode, wParam, lParam);
     }
 }

@@ -7,43 +7,43 @@ using System.Drawing;
 
 namespace NWindows;
 
-public readonly struct DpiScale : IEquatable<DpiScale>
+public readonly struct Dpi : IEquatable<Dpi>
 {
     private const float DefaultDpi = 96.0f;
     private const int DefaultDpiAsInt = 96;
     private const int MaxDefaultDpiAsInt = DefaultDpiAsInt * 4;
 
-    public static readonly DpiScale Default = new(DefaultDpiAsInt, DefaultDpiAsInt);
+    public static readonly Dpi Default = new(DefaultDpiAsInt, DefaultDpiAsInt);
 
-    public DpiScale(Point dpi) : this(dpi.X, dpi.Y)
+    public Dpi(Point dpi) : this(dpi.X, dpi.Y)
     {
     }
 
-    public DpiScale(int dpiX, int dpiY)
+    public Dpi(int x, int y)
     {
-        dpiX = Math.Clamp(dpiX, DefaultDpiAsInt, MaxDefaultDpiAsInt);
-        dpiY = Math.Clamp(dpiY, DefaultDpiAsInt, MaxDefaultDpiAsInt);
+        x = Math.Clamp(x, DefaultDpiAsInt, MaxDefaultDpiAsInt);
+        y = Math.Clamp(y, DefaultDpiAsInt, MaxDefaultDpiAsInt);
 
-        DpiX = dpiX;
-        DpiY = dpiY;
+        X = x;
+        Y = y;
 
-        if (dpiX == DefaultDpiAsInt && dpiY == DefaultDpiAsInt)
+        if (x == DefaultDpiAsInt && y == DefaultDpiAsInt)
         {
             ScaleLogicalToPixel = new PointF(1.0f, 1.0f);
             ScalePixelToLogical = ScaleLogicalToPixel;
         }
         else
         {
-            ScaleLogicalToPixel = new PointF(dpiX / DefaultDpi, dpiY / DefaultDpi);
-            ScalePixelToLogical = new PointF(DefaultDpi / dpiX, DefaultDpi / dpiY);
+            ScaleLogicalToPixel = new PointF(x / DefaultDpi, y / DefaultDpi);
+            ScalePixelToLogical = new PointF(DefaultDpi / x, DefaultDpi / y);
         }
     }
 
-    public bool IsEmpty => DpiX == 0;
+    public bool IsEmpty => X == 0;
 
-    public int DpiX { get; }
+    public int X { get; }
 
-    public int DpiY { get; }
+    public int Y { get; }
 
     public PointF ScaleLogicalToPixel { get; }
 
@@ -57,33 +57,33 @@ public readonly struct DpiScale : IEquatable<DpiScale>
 
     public Size LogicalToPixel(SizeF point) => new((int)(point.Width * ScaleLogicalToPixel.X), (int)(point.Height * ScaleLogicalToPixel.Y));
 
-    public bool Equals(DpiScale other)
+    public bool Equals(Dpi other)
     {
-        return DpiX == other.DpiX && DpiY == other.DpiY;
+        return X == other.X && Y == other.Y;
     }
 
     public override bool Equals(object? obj)
     {
-        return obj is DpiScale other && Equals(other);
+        return obj is Dpi other && Equals(other);
     }
 
     public override int GetHashCode()
     {
-        return HashCode.Combine(DpiX, DpiY);
+        return HashCode.Combine(X, Y);
     }
 
-    public static bool operator ==(DpiScale left, DpiScale right)
+    public static bool operator ==(Dpi left, Dpi right)
     {
         return left.Equals(right);
     }
 
-    public static bool operator !=(DpiScale left, DpiScale right)
+    public static bool operator !=(Dpi left, Dpi right)
     {
         return !left.Equals(right);
     }
 
     public override string ToString()
     {
-        return $"{nameof(DpiX)}: {DpiX}, {nameof(DpiY)}: {DpiY}, Scale: ({ScaleLogicalToPixel.X * 100:##0}%, {ScaleLogicalToPixel.Y * 100:##0}%)";
+        return $"{nameof(X)}: {X}, {nameof(Y)}: {Y}, Scale: ({ScaleLogicalToPixel.X * 100:##0}%, {ScaleLogicalToPixel.Y * 100:##0}%)";
     }
 }

@@ -32,7 +32,7 @@ public abstract partial class Dispatcher
     // We use a fast static instance for the current dispatcher 
     // We check that we are on the same thread otherwise we override it
     [ThreadStatic]
-    private static Dispatcher? _tlsCurrentDispatcher; // TODO: we might want to optimize it with a static field as it is done in WPF
+    internal static Dispatcher? TlsCurrentDispatcher; // TODO: we might want to optimize it with a static field as it is done in WPF
 
     // internal list storing all dispatchers
     private static readonly List<WeakReference<Dispatcher>> Dispatchers = new();
@@ -62,7 +62,7 @@ public abstract partial class Dispatcher
         _defaultUnhandledExceptionEvent = new UnhandledExceptionEvent();
 
         // Make sure that the TLS dispatcher is set
-        _tlsCurrentDispatcher = this;
+        TlsCurrentDispatcher = this;
 
         Events = new DispatcherEventHub(this);
 
@@ -81,7 +81,7 @@ public abstract partial class Dispatcher
     /// <remarks>
     /// The current dispatcher is attached to the current thread.
     /// </remarks>
-    public static Dispatcher Current => _tlsCurrentDispatcher ?? FromThread(Thread.CurrentThread);
+    public static Dispatcher Current => TlsCurrentDispatcher ?? FromThread(Thread.CurrentThread);
 
     /// <summary>
     /// Gets the dispatcher from the specified thread or create one if not it does not exist.
