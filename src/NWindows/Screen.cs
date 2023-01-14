@@ -40,8 +40,12 @@ public abstract class Screen : DispatcherObject
     
     public abstract Point Dpi { get; }
 
+    public abstract ref readonly ScreenMode CurrentDisplayMode { get; }
+    
+    public abstract ReadOnlySpan<ScreenMode> DisplayModes { get; }
+
     public override string ToString()
     {
-        return $"Screen {nameof(Name)}: {Name}, {nameof(IsPrimary)}: {IsPrimary}, {nameof(Position)}: {Position}, {nameof(SizeInPixels)}: {SizeInPixels}, {nameof(Size)}: {Size}, {nameof(Dpi)}: {Dpi}";
+        return $"Screen {nameof(Name)}: {Name}, {nameof(IsPrimary)}: {IsPrimary}, {nameof(Position)}: {Position}, {nameof(SizeInPixels)}: {SizeInPixels}, {nameof(Size)}: {Size}, {nameof(Dpi)}: {Dpi}, {nameof(DisplayModes)}: {DisplayModes.Length}";
     }
 }

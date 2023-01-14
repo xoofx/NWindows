@@ -15,6 +15,7 @@ using static TerraFX.Interop.Windows.MK;
 using static TerraFX.Interop.Windows.Windows;
 using static TerraFX.Interop.Windows.WM;
 using static TerraFX.Interop.Windows.TME;
+using System.Diagnostics;
 
 namespace NWindows.Interop.Win32;
 
@@ -26,7 +27,7 @@ namespace NWindows.Interop.Win32;
 
 internal unsafe class Win32Window : Window
 {
-    private readonly bool _hasDecorations;
+    private bool _hasDecorations;
     private float _mouseLastX;
     private float _mouseLastY;
     private bool _mouseTracked;
@@ -62,16 +63,27 @@ internal unsafe class Win32Window : Window
     private Point _dpi;
     private readonly Win32DropTarget _dropTarget;
 
+    private bool _isFullscreen;
+    private RECT _windowRectBeforeFullScreen;
+    private bool _hasDecorationsBeforeFullScreen;
+    private bool _hasMaximizeableBeforeFullScreen;
+    private bool _hasMinimizeableBeforeFullScreen;
+    private bool _hasResizeableBeforeFullScreen;
+    private Point _dpiBeforeFullScreen;
+
     public Win32Window(WindowCreateOptions options) : base(options)
     {
         _hasDecorations = options.Decorations;
-        _resizeable = options.Resizable;
         _title = options.Title;
+        _resizeable = options.Resizable;
+        _maximizeable = options.Maximizable;
+        _minimizeable = options.Minimizable;
         _mouseLastX = -1;
         _mouseLastY = -1;
         _opacity = 1.0f;
         _enable = true;
         _initialShowInTaskBar = options.ShowInTaskBar;
+        _state = options.WindowState;
         if (options.BackgroundColor.HasValue)
         {
             UpdateBackgroundColor(options.BackgroundColor.Value, false);
@@ -110,6 +122,23 @@ internal unsafe class Win32Window : Window
             if (value != _enable)
             {
                 UpdateEnable(value);
+            }
+        }
+    }
+
+    public override bool HasDecorations
+    {
+        get
+        {
+            VerifyAccess();
+            return _hasDecorations;
+        }
+        set
+        {
+            VerifyAccessAndNotDestroyed();
+            if (value != _enable)
+            {
+                UpdateDecorations(value);
             }
         }
     }
@@ -619,7 +648,7 @@ internal unsafe class Win32Window : Window
                 break;
 
             case WM_DWMCOMPOSITIONCHANGED:
-                UpdateCompositionEnabled();
+                UpdateCompositionEnabled(_hasDecorations, _isFullscreen);
                 result = 0;
                 break;
 
@@ -961,8 +990,16 @@ internal unsafe class Win32Window : Window
         }
         else
         {
-            // Force the size
-            var sizeInPixel = WindowHelper.LogicalToPixel(_size, _dpi);
+            Size sizeInPixel;
+            // Force the size to full screen
+            if (_isFullscreen && GetScreen() is {} screen)
+            {
+                sizeInPixel = screen.SizeInPixels;
+            }
+            else
+            {
+                sizeInPixel = WindowHelper.LogicalToPixel(_size, _dpi);
+            }
 
             info->ptMaxSize.x = sizeInPixel.Width;
             info->ptMaxSize.y = sizeInPixel.Height;
@@ -980,23 +1017,26 @@ internal unsafe class Win32Window : Window
         _isThemeActive = IsThemeActive();
     }
 
-    private void UpdateCompositionEnabled()
+    private void UpdateCompositionEnabled(bool hasDecorations, bool fullscreen)
     {
         BOOL enabled = FALSE;
         DwmIsCompositionEnabled(&enabled);
         _isCompositionEnabled = enabled;
 
-        if (_isCompositionEnabled && !_hasDecorations)
+        if (_isCompositionEnabled)
         {
             // The window needs a frame to show a shadow, so give it the smallest amount of frame possible
             MARGINS margins = default;
-            margins.cyTopHeight = 1;
+
+            if (!fullscreen)
+            {
+                margins.cyTopHeight = 1;
+            }
+
             DwmExtendFrameIntoClientArea(HWnd, &margins);
             DWMNCRENDERINGPOLICY attributes = DWMNCRENDERINGPOLICY.DWMNCRP_ENABLED;
             DwmSetWindowAttribute(HWnd, (uint)DWMWINDOWATTRIBUTE.DWMWA_NCRENDERING_POLICY, &attributes, sizeof(DWMNCRENDERINGPOLICY));
         }
-        // TODO
-        // update_region(data);
     }
 
     private void HandleCreate()
@@ -1072,7 +1112,7 @@ internal unsafe class Win32Window : Window
     // Hit test the frame for resizing and moving.
     private LRESULT HitTestNonClientAreaBorderLess(HWND hWnd, WPARAM wParam, LPARAM lParam)
     {
-        if (IsMaximized(HWnd))
+        if (IsMaximized(HWnd) || _isFullscreen)
         {
             return HTCLIENT;
         }
@@ -1446,6 +1486,28 @@ internal unsafe class Win32Window : Window
         // Notify is handled by WindowProc
     }
 
+    private void UpdateDecorations(bool value, bool notify = true, bool invalidate = true)
+    {
+        UpdateCompositionEnabled(value, _isFullscreen);
+
+        bool changed = _hasDecorations != value;
+        _hasDecorations = value;
+
+        // Notify with a frame changed event
+        SetWindowPos(HWnd, HWND.NULL, 0, 0, 0, 0, SWP.SWP_NOMOVE | SWP.SWP_NOSIZE | SWP.SWP_NOACTIVATE | SWP.SWP_NOZORDER | SWP.SWP_FRAMECHANGED);
+
+        if (invalidate)
+        {
+            InvalidateRect(HWnd, null, false);
+            UpdateWindow(HWnd);
+        }
+
+        if (notify && changed)
+        {
+            OnFrameEvent(FrameEventKind.DecorationsChanged);
+        }
+    }
+
     private void UpdateBackgroundColor(Color value, bool notify = true)
     {
         // If we don't have a default color brush
@@ -1481,7 +1543,7 @@ internal unsafe class Win32Window : Window
     private void UpdateSize(SizeF value)
     {
         var screenSize = WindowHelper.LogicalToPixel(value, _dpi);
-        SetWindowPos(HWnd, HWND.NULL, 0, 0, screenSize.Width, screenSize.Height, SWP.SWP_NOREPOSITION | SWP.SWP_NOACTIVATE | SWP.SWP_NOZORDER);
+        SetWindowPos(HWnd, HWND.NULL, 0, 0, screenSize.Width, screenSize.Height, SWP.SWP_NOMOVE | SWP.SWP_NOACTIVATE | SWP.SWP_NOZORDER);
         // Notify is handled by HandlePositionChanged
     }
 
@@ -1519,7 +1581,7 @@ internal unsafe class Win32Window : Window
         }
     }
 
-    private void UpdateResizeable(bool value)
+    private void UpdateResizeable(bool value, bool invalidate = true)
     {
         var style = GetWindowStyle(HWnd);
         if (value)
@@ -1537,14 +1599,22 @@ internal unsafe class Win32Window : Window
             style &= ~(uint)(WS_SIZEBOX | WS_MAXIMIZEBOX);
         }
         SetWindowLongPtr(HWnd, GWL.GWL_STYLE, (nint)style);
-        InvalidateRect(HWnd, null, false);
-        UpdateWindow(HWnd);
 
+        if (invalidate)
+        {
+            InvalidateRect(HWnd, null, false);
+            UpdateWindow(HWnd);
+        }
+
+        bool changed = _resizeable != value;
         _resizeable = value;
-        OnFrameEvent(FrameEventKind.ResizeableChanged);
+        if (changed)
+        {
+            OnFrameEvent(FrameEventKind.ResizeableChanged);
+        }
     }
 
-    private void UpdateMaximizeable(bool value)
+    private void UpdateMaximizeable(bool value, bool invalidate = true)
     {
         var style = GetWindowStyle(HWnd);
         if (value)
@@ -1556,14 +1626,22 @@ internal unsafe class Win32Window : Window
             style &= ~(uint)WS_MAXIMIZEBOX;
         }
         SetWindowLongPtr(HWnd, GWL.GWL_STYLE, (nint)style);
-        InvalidateRect(HWnd, null, false);
-        UpdateWindow(HWnd);
 
+        if (invalidate)
+        {
+            InvalidateRect(HWnd, null, false);
+            UpdateWindow(HWnd);
+        }
+
+        bool changed = _maximizeable != value;
         _maximizeable = value;
-        OnFrameEvent(FrameEventKind.MaximizeableChanged);
+        if (changed)
+        {
+            OnFrameEvent(FrameEventKind.MaximizeableChanged);
+        }
     }
 
-    private void UpdateMinimizeable(bool value)
+    private void UpdateMinimizeable(bool value, bool invalidate = true)
     {
         var style = GetWindowStyle(HWnd);
         if (value)
@@ -1575,8 +1653,12 @@ internal unsafe class Win32Window : Window
             style &= ~(uint)WS_MINIMIZEBOX;
         }
         SetWindowLongPtr(HWnd, GWL.GWL_STYLE, (nint)style);
-        InvalidateRect(HWnd, null, false);
-        UpdateWindow(HWnd);
+
+        if (invalidate)
+        {
+            InvalidateRect(HWnd, null, false);
+            UpdateWindow(HWnd);
+        }
 
         _minimizeable = value;
         OnFrameEvent(FrameEventKind.MinimizeableChanged);
@@ -1584,26 +1666,51 @@ internal unsafe class Win32Window : Window
 
     private void UpdateWindowState(WindowState state)
     {
-        switch (state)
+        // If we arrive here, It is necessarily:
+        // - previous: false, next: true
+        // - previous: true, next: false
+        bool previousFullScreen = _state.IsFullScreen;
+        bool nextFullScreen = state.IsFullScreen;
+        
+        // Non fullscreen mode cases
+        switch (state.Kind)
         {
-            case WindowState.Normal:
+            case WindowStateKind.Normal:
+                if (previousFullScreen)
+                {
+                    RestoreWindowBeforeFullScreen();
+                }
                 ShowWindow(HWnd, SW.SW_NORMAL);
                 break;
-            case WindowState.Minimized:
+            case WindowStateKind.Minimized:
+                if (previousFullScreen)
+                {
+                    RestoreWindowBeforeFullScreen();
+                }
                 ShowWindow(HWnd, SW.SW_MINIMIZE);
                 break;
-            case WindowState.Maximized:
+            case WindowStateKind.Maximized:
                 if (_maximumSize.IsEmpty)
                 {
+                    if (previousFullScreen)
+                    {
+                        RestoreWindowBeforeFullScreen();
+                    }
                     ShowWindow(HWnd, SW.SW_MAXIMIZE);
                 }
                 break;
-            default:
-                throw new ArgumentOutOfRangeException(nameof(state), state, "Invalid WindowState");
+            case WindowStateKind.FullScreen:
+            case WindowStateKind.ExclusiveFullScreen:
+                // Try to switch to fullscreen, we could be not successful so
+                // in that case we have to return without changing the state
+                if (!SwitchToFullScreen(state))
+                {
+                    return;
+                }
+                break;
         }
 
         _state = state;
-
         OnFrameEvent(FrameEventKind.StateChanged);
     }
 
@@ -1764,6 +1871,209 @@ internal unsafe class Win32Window : Window
         OnFrameEvent(FrameEventKind.ShowInTaskBarChanged);
     }
 
+    private bool SwitchToFullScreen(WindowState state)
+    {
+        var screen = GetScreen();
+        if (screen == null) return false;
+
+        // The size of the window must match the size of the screen if we haven't specified an exclusive size
+        var currentMode = screen.CurrentDisplayMode;
+        var requestedMode = currentMode;
+
+        bool changeOfResolution = false;
+
+        // In case of exclusive, we make sure that the mode is supported
+        if (state is WindowState.ExclusiveFullScreen exclusive)
+        {
+            requestedMode = exclusive.Mode;
+            var indexOfScreen = screen.DisplayModes.IndexOf(requestedMode);
+            if (indexOfScreen < 0) return false;
+
+            changeOfResolution = currentMode.Width != requestedMode.Width || currentMode.Height != requestedMode.Height;
+        }
+
+        // If we are switching to fullscreen (exclusive or not), save the size/decorations of the window 
+        if (!_state.IsFullScreen)
+        {
+            RECT windowRect;
+            GetWindowRect(HWnd, &windowRect);
+            _windowRectBeforeFullScreen = windowRect;
+            _hasDecorationsBeforeFullScreen = _hasDecorations;
+            _hasMinimizeableBeforeFullScreen = _minimizeable;
+            _hasMaximizeableBeforeFullScreen = _maximizeable;
+            _hasResizeableBeforeFullScreen = _resizeable;
+            _dpiBeforeFullScreen = _dpi;
+
+            // The window won't have any decorations and won't be maximizeable in fullscreen mode
+            _isFullscreen = true;
+        }
+
+        // Keep the dpi
+        if (changeOfResolution)
+        {
+            var oldDpi = _dpi;
+            _dpi = new Point(96, 96);
+            if (oldDpi != _dpi)
+            {
+                OnWindowEvent(new DpiChangedEvent() { PreviousValue = oldDpi, NewValue = _dpi });
+            }
+        }
+
+        UpdateMaximizeable(false, false);
+        UpdateMinimizeable(false, false);
+        UpdateResizeable(false, false);
+        UpdateDecorations(false, true, false);
+
+        bool success = true;
+        if (state is WindowState.ExclusiveFullScreen)
+        {
+            // Set the window position
+            SetWindowPos(HWnd, HWND.NULL, screen.Position.X, screen.Position.Y, requestedMode.Width, requestedMode.Height, SWP.SWP_NOZORDER | SWP.SWP_NOACTIVATE);
+
+            fixed (char* displayName = screen.Name)
+            {
+                DEVMODEW devModeW = default;
+                devModeW.dmSize = (ushort)sizeof(DEVMODEW);
+
+                // Save the mouse position before switching mode
+                var position = Mouse.Position;
+                var mouseRelativePosition = new PointF((float)(position.X - screen.Position.X) / screen.SizeInPixels.Width, (float)(position.Y - screen.Position.Y) / screen.SizeInPixels.Height);
+
+                EnumDisplaySettingsExW((ushort*)displayName, ENUM.ENUM_CURRENT_SETTINGS, &devModeW, 0);
+
+                devModeW.dmBitsPerPel = (uint)requestedMode.BitsPerPixel;
+                devModeW.dmPelsWidth = (uint)requestedMode.Width;
+                devModeW.dmPelsHeight = (uint)requestedMode.Height;
+                devModeW.dmDisplayFrequency = (uint)requestedMode.Frequency;
+                devModeW.dmFields =
+                    DM.DM_PELSWIDTH |
+                    DM.DM_PELSHEIGHT |
+                    DM.DM_BITSPERPEL |
+                    DM.DM_DISPLAYFREQUENCY;
+
+                var result = ChangeDisplaySettingsExW((ushort*)displayName, &devModeW, HWND.NULL, CDS.CDS_FULLSCREEN, null);
+                success = result == DISP.DISP_CHANGE_SUCCESSFUL;
+
+                // Similar to https://github.com/rust-windowing/winit/blob/9225b2812edcdc8abc049f4811361e10cc94cee0/src/platform_impl/windows/window.rs#LL555-L562C39
+                // Seems that `ChangeDisplaySettingsExW can take a long time enough that DWM
+                // will think that our program is frozen and will take over and won't make our Window fully fullscreen.
+                //
+                // Calling `PeekMessageW` here notifies Windows that our process is still running
+                // fine, taking control back from the DWM and ensuring that the `SetWindowPos` call
+                // below goes through.
+                MSG msg;
+                PeekMessageW(&msg, HWND.NULL, wMsgFilterMin: WM_NULL, wMsgFilterMax: WM_NULL, wRemoveMsg: PM.PM_NOREMOVE);
+
+                // Make sure to reset the window
+                SetWindowPos(HWnd, HWND.NULL, screen.Position.X, screen.Position.Y, requestedMode.Width, requestedMode.Height, SWP.SWP_NOZORDER | SWP.SWP_NOACTIVATE);
+
+                // Restore the mouse position after with similar relative coordinates
+                if (mouseRelativePosition.X >= 0 && mouseRelativePosition.Y >= 0 && mouseRelativePosition.X <= 1.0f && mouseRelativePosition.Y <= 1.0f)
+                {
+                    Mouse.Position = new Point((int)(mouseRelativePosition.X * requestedMode.Width) + screen.Position.X, (int)(mouseRelativePosition.Y * requestedMode.Height) + screen.Position.Y);
+                }
+            }
+        }
+        else
+        {
+            ExitExclusiveFullScreen();
+
+            // If we switch from exclusive to fullscreen, restore the DPI
+            var oldDpi = _dpi;
+            _dpi = _dpiBeforeFullScreen;
+            if (oldDpi != _dpi)
+            {
+                OnWindowEvent(new DpiChangedEvent() { PreviousValue = oldDpi, NewValue = _dpi });
+            }
+
+            // Set the window position
+            SetWindowPos(HWnd, HWND.NULL, screen.Position.X, screen.Position.Y, screen.SizeInPixels.Width, screen.SizeInPixels.Height, SWP.SWP_NOZORDER | SWP.SWP_NOACTIVATE);
+        }
+
+        if (success)
+        {
+            InvalidateRect(HWnd, null, false);
+            UpdateWindow(HWnd);
+        }
+        else
+        {
+            RestoreWindowBeforeFullScreen();
+        }
+
+        return success;
+    }
+
+    private void RestoreWindowBeforeFullScreen()
+    {
+        Debug.Assert(_isFullscreen);
+        _isFullscreen = false;
+
+        // If we were previously exclusive, restore non exclusive
+        if (_state is WindowState.ExclusiveFullScreen)
+        {
+            ExitExclusiveFullScreen();
+        }
+
+        var oldDpi = _dpi;
+        _dpi = _dpiBeforeFullScreen;
+        if (oldDpi != _dpi)
+        {
+            OnWindowEvent(new DpiChangedEvent() { PreviousValue = oldDpi, NewValue = _dpi });
+        }
+        
+        var width = _windowRectBeforeFullScreen.right - _windowRectBeforeFullScreen.left;
+        var height = _windowRectBeforeFullScreen.bottom - _windowRectBeforeFullScreen.top;
+
+        UpdateMinimizeable(_hasMinimizeableBeforeFullScreen, false);
+        UpdateMaximizeable(_hasMaximizeableBeforeFullScreen, false);
+        UpdateResizeable(_hasResizeableBeforeFullScreen, false);
+        UpdateDecorations(_hasDecorationsBeforeFullScreen, invalidate: false);
+
+        // Restore the Window position
+        SetWindowPos(HWnd, HWND.NULL, _windowRectBeforeFullScreen.left, _windowRectBeforeFullScreen.top, width, height, SWP.SWP_NOZORDER | SWP.SWP_NOACTIVATE);
+
+        InvalidateRect(HWnd, null, false);
+        UpdateWindow(HWnd);
+        
+        _hasMinimizeableBeforeFullScreen = default;
+        _hasMaximizeableBeforeFullScreen = default;
+        _hasDecorationsBeforeFullScreen = default;
+        _windowRectBeforeFullScreen = default;
+        _dpiBeforeFullScreen = default;
+    }
+
+    private void ExitExclusiveFullScreen()
+    {
+        // Save the mouse position before switching mode
+        var screen = GetScreen();
+
+        var position = Mouse.Position;
+        var mouseRelativePosition = new PointF(-1.0f, -1.0f);
+        if (screen != null)
+        {
+            mouseRelativePosition = new PointF((float)(position.X - screen.Position.X) / screen.SizeInPixels.Width, (float)(position.Y - screen.Position.Y) / screen.SizeInPixels.Height);
+        }
+        
+        var displayName = screen?.Name ?? null;
+        fixed (char* pDisplayName = displayName)
+        {
+            // Restore default display settings
+            ChangeDisplaySettingsExW((ushort*)pDisplayName, null, HWND.NULL, 0, null);
+        }
+
+        // Make sure that we update screen coordinates (so that the following screen instance will have been changed)
+        if (Dispatcher.ScreenManager.TryUpdateScreens())
+        {
+            Dispatcher.OnSystemEvent(SystemEventKind.ScreenChanged);
+        }
+
+        // Restore the mouse position after with similar relative coordinates
+        if (screen != null && mouseRelativePosition.X >= 0 && mouseRelativePosition.Y >= 0 && mouseRelativePosition.X <= 1.0f && mouseRelativePosition.Y <= 1.0f)
+        {
+            Mouse.Position = new Point((int)(mouseRelativePosition.X * screen.SizeInPixels.Width) + screen.Position.X, (int)(mouseRelativePosition.Y * screen.SizeInPixels.Height) + screen.Position.Y);
+        }
+    }
+
     private void CreateWindowHandle(WindowCreateOptions options)
     {
         _minimumSize = options.MinimumSize ?? SizeF.Empty;
@@ -1881,7 +2191,7 @@ internal unsafe class Win32Window : Window
             Win32Dispatcher.CreatedWindowHandle = default;
 
             UpdateThemeActive();
-            UpdateCompositionEnabled();
+            UpdateCompositionEnabled(_hasDecorations, false);
 
             // Check for clipboard events
             AddClipboardFormatListener(HWnd);
@@ -1962,11 +2272,11 @@ internal unsafe class Win32Window : Window
                 style |= WS_MINIMIZEBOX;
             }
 
-            if (options.Maximized && !options.MaximumSize.HasValue)
+            if (options.WindowState == WindowState.Maximized && !options.MaximumSize.HasValue)
             {
                 style |= WS_MAXIMIZE;
             }
-            else if (options.Minimized)
+            else if (options.WindowState == WindowState.Minimized)
             {
                 style |= WS_MINIMIZE;
             }

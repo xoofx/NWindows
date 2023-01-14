@@ -2,15 +2,26 @@
 // Licensed under the BSD-Clause 2 license.
 // See license.txt file in the project root for full license information.
 
-using System;
-
 namespace NWindows;
 
-public enum WindowState
+public record WindowState
 {
-    Normal,
+    internal  WindowState(WindowStateKind kind)
+    {
+        Kind = kind;
+    }
+    
+    public WindowStateKind Kind { get; }
 
-    Minimized,
+    public static readonly WindowState Normal = new (WindowStateKind.Normal);
 
-    Maximized,
+    public static readonly WindowState Minimized = new (WindowStateKind.Minimized);
+
+    public static readonly WindowState Maximized = new (WindowStateKind.Maximized);
+
+    public static readonly WindowState FullScreen = new (WindowStateKind.FullScreen);
+
+    public bool IsFullScreen => Kind is WindowStateKind.FullScreen or WindowStateKind.ExclusiveFullScreen;
+
+    public sealed record ExclusiveFullScreen(ScreenMode Mode) : WindowState(WindowStateKind.ExclusiveFullScreen);
 }

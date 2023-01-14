@@ -101,9 +101,25 @@ static void EventsOnAll(Window window, WindowEvent evt)
             }
         }
     }
+    else if (evt is KeyboardEvent keyboardEvent)
+    {
+        if (keyboardEvent.IsDown)
+        {
+            if (keyboardEvent.Key == Key.E)
+            {
+                window.State = new WindowState.ExclusiveFullScreen(new(1920, 1080, 32, 60, DisplayOrientation.Default));
+            }
+            else if (keyboardEvent.Key == Key.F)
+            {
+                window.State = WindowState.FullScreen;
+            }
+            else if (keyboardEvent.Key == Key.N)
+            {
+                window.State = WindowState.Normal;
+            }
+        }
+    }
 }
-
-
 
 //void EventsOnAllChild(Window w, WindowEvent evt)
 //{

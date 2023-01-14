@@ -67,17 +67,7 @@ public sealed record WindowCreateOptions
     /// <summary>
     /// Sets whether the window should go fullscreen upon creation. Default is <c>false</c>.
     /// </summary>
-    public bool FullScreen { get; init; } = false;
-
-    /// <summary>
-    /// Sets whether the window should be minimized upon creation. Default is <c>false</c>.
-    /// </summary>
-    public bool Minimized { get; init; } = false;
-
-    /// <summary>
-    /// Sets whether the window should be maximized upon creation. Default is <c>false</c>.
-    /// </summary>
-    public bool Maximized { get; init; } = false;
+    public WindowState WindowState { get; init; } = WindowState.Normal;
 
     /// <summary>
     /// Sets whether the window should be visible upon creation. Default is <c>true</c>.

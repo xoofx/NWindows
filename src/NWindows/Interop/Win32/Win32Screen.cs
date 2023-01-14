@@ -2,6 +2,7 @@
 // Licensed under the BSD-Clause 2 license.
 // See license.txt file in the project root for full license information.
 
+using System;
 using System.Drawing;
 using TerraFX.Interop.Windows;
 
@@ -77,6 +78,24 @@ internal sealed class Win32Screen : Screen
         {
             VerifyAccess();
             return InternalData.Dpi;
+        }
+    }
+
+    public override ref readonly ScreenMode CurrentDisplayMode
+    {
+        get
+        {
+            VerifyAccess();
+            return ref InternalData.CurrentDisplayMode;
+        }
+    }
+
+    public override ReadOnlySpan<ScreenMode> DisplayModes
+    {
+        get
+        {
+            VerifyAccess();
+            return InternalData.ScreenModes;
         }
     }
 }

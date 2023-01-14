@@ -3,14 +3,16 @@
 // See license.txt file in the project root for full license information.
 
 using System;
+using System.Collections.Generic;
 using System.Drawing;
 using TerraFX.Interop.Windows;
+using static TerraFX.Interop.Windows.Windows;
 
 namespace NWindows.Interop.Win32;
 
 internal readonly struct Win32ScreenData : IEquatable<Win32ScreenData>
 {
-    private Win32ScreenData(string name, bool isPrimary, Point position, SizeF size, Size sizeInPixels, Point dpi)
+    private Win32ScreenData(string name, bool isPrimary, Point position, SizeF size, Size sizeInPixels, Point dpi, in ScreenMode currentDisplayMode, ScreenMode[] screenModes)
     {
         IsValid = true;
         Name = name;
@@ -19,12 +21,15 @@ internal readonly struct Win32ScreenData : IEquatable<Win32ScreenData>
         Size = size;
         SizeInPixels = sizeInPixels;
         Dpi = dpi;
+        CurrentDisplayMode = currentDisplayMode;
+        ScreenModes = screenModes;
     }
 
     private Win32ScreenData(string name)
     {
         IsValid = false;
         Name = name;
+        ScreenModes = Array.Empty<ScreenMode>();
     }
 
     public readonly bool IsValid;
@@ -41,9 +46,13 @@ internal readonly struct Win32ScreenData : IEquatable<Win32ScreenData>
 
     public readonly Point Dpi;
 
+    public readonly ScreenMode CurrentDisplayMode;
+
+    public readonly ScreenMode[] ScreenModes;
+
     public bool Equals(Win32ScreenData other)
     {
-        return IsValid == other.IsValid && Name == other.Name && IsPrimary == other.IsPrimary && Position.Equals(other.Position) && Size.Equals(other.Size) && Dpi.Equals(other.Dpi);
+        return IsValid == other.IsValid && Name == other.Name && IsPrimary == other.IsPrimary && Position.Equals(other.Position) && Size.Equals(other.Size) && Dpi.Equals(other.Dpi) && CurrentDisplayMode.Equals(other.CurrentDisplayMode) && ScreenModes.AsSpan().SequenceEqual(other.ScreenModes);
     }
 
     public override bool Equals(object? obj)
@@ -71,14 +80,14 @@ internal readonly struct Win32ScreenData : IEquatable<Win32ScreenData>
         MONITORINFOEXW monitorInfo;
         monitorInfo.Base.cbSize = (uint)sizeof(MONITORINFOEXW);
 
-        if (Windows.GetMonitorInfoW(monitorHandle, (MONITORINFO*)&monitorInfo))
+        if (GetMonitorInfoW(monitorHandle, (MONITORINFO*)&monitorInfo))
         {
-            var isPrimary = (monitorInfo.Base.dwFlags & Windows.MONITORINFOF_PRIMARY) != 0;
+            var isPrimary = (monitorInfo.Base.dwFlags & MONITORINFOF_PRIMARY) != 0;
 
             // Fetch the DPI
             int dpiX;
             int dpiY;
-            if (Windows.GetDpiForMonitor(monitorHandle, MONITOR_DPI_TYPE.MDT_EFFECTIVE_DPI, (uint*)&dpiX, (uint*)&dpiY) != 0)
+            if (GetDpiForMonitor(monitorHandle, MONITOR_DPI_TYPE.MDT_EFFECTIVE_DPI, (uint*)&dpiX, (uint*)&dpiY) != 0)
             {
                 dpiX = 96;
                 dpiY = 96;
@@ -100,7 +109,31 @@ internal readonly struct Win32ScreenData : IEquatable<Win32ScreenData>
             var width = WindowHelper.PixelToLogical(pixelWidth, dpiX);
             var height = WindowHelper.PixelToLogical(pixelHeight, dpiY);
 
-            screenData = new Win32ScreenData(name, isPrimary, new Point(pixelPositionX, pixelPositionY), new SizeF(width, height), new Size(pixelWidth, pixelHeight), new Point(dpiX, dpiY));
+            DEVMODEW devModeW = default;
+            devModeW.dmSize = (ushort)sizeof(DEVMODEW);
+            uint modeIndex = 0;
+            var displayModes = new List<ScreenMode>(128);
+            while (EnumDisplaySettingsExW((ushort*)monitorInfo.szDevice, modeIndex, &devModeW, 0))
+            {
+                // Skip exotic displays (interlaced, greyscale)
+                if (devModeW.dmDisplayFlags != 0)
+                {
+                    continue;
+                }
+
+                ToDisplayMode(devModeW, out var displayMode);
+                displayModes.Add(displayMode);
+                modeIndex++;
+            }
+            displayModes.Sort(ScreenModeComparer.Instance);
+
+            ScreenMode currentDisplayMode = default;
+            if (EnumDisplaySettingsExW((ushort*)monitorInfo.szDevice, ENUM.ENUM_CURRENT_SETTINGS, &devModeW, 0))
+            {
+                ToDisplayMode(devModeW, out currentDisplayMode);
+            }
+
+            screenData = new Win32ScreenData(name, isPrimary, new Point(pixelPositionX, pixelPositionY), new SizeF(width, height), new Size(pixelWidth, pixelHeight), new Point(dpiX, dpiY), currentDisplayMode, displayModes.ToArray());
             return true;
         }
         else
@@ -109,5 +142,53 @@ internal readonly struct Win32ScreenData : IEquatable<Win32ScreenData>
         }
 
         return false;
+    }
+
+    private static void ToDisplayMode(in DEVMODEW devModeW, out ScreenMode screenMode)
+    {
+        var orientation = devModeW.dmOrientation switch
+        {
+            DMDO_DEFAULT => DisplayOrientation.Default,
+            DMDO_90 => DisplayOrientation.Rotate90,
+            DMDO_180 => DisplayOrientation.Rotate180,
+            DMDO_270 => DisplayOrientation.Rotate270,
+            _ => DisplayOrientation.Default,
+        };
+
+        screenMode = new ScreenMode((int)devModeW.dmPelsWidth, (int)devModeW.dmPelsHeight, (int)devModeW.dmBitsPerPel, (int)devModeW.dmDisplayFrequency, orientation);
+    }
+
+    private class ScreenModeComparer : IComparer<ScreenMode>
+    {
+        public static readonly ScreenModeComparer Instance = new ScreenModeComparer();
+
+        public int Compare(ScreenMode x, ScreenMode y)
+        {
+            var widthComparison = x.Width.CompareTo(y.Width);
+            if (widthComparison != 0)
+            {
+                return widthComparison;
+            }
+
+            var heightComparison = x.Height.CompareTo(y.Height);
+            if (heightComparison != 0)
+            {
+                return heightComparison;
+            }
+
+            var bitsPerPixelComparison = x.BitsPerPixel.CompareTo(y.BitsPerPixel);
+            if (bitsPerPixelComparison != 0)
+            {
+                return bitsPerPixelComparison;
+            }
+
+            var frequencyComparison = x.Frequency.CompareTo(y.Frequency);
+            if (frequencyComparison != 0)
+            {
+                return frequencyComparison;
+            }
+
+            return x.Orientation.CompareTo(y.Orientation);
+        }
     }
 }

@@ -40,6 +40,8 @@ public abstract class Window : DispatcherObject, INativeWindow
 
     public WindowKind Kind { get; protected set; }
 
+    public abstract bool HasDecorations { get; set; }
+
     public abstract Point Dpi { get; }
 
     public abstract Color BackgroundColor { get; set; }
