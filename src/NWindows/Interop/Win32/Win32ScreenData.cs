@@ -12,7 +12,7 @@ namespace NWindows.Interop.Win32;
 
 internal readonly struct Win32ScreenData : IEquatable<Win32ScreenData>
 {
-    private Win32ScreenData(string name, bool isPrimary, Point position, SizeF size, Size sizeInPixels, Point dpi, in ScreenMode currentDisplayMode, ScreenMode[] screenModes)
+    private Win32ScreenData(string name, bool isPrimary, Point position, SizeF size, Size sizeInPixels, DpiScale dpiScale, in ScreenMode currentDisplayMode, ScreenMode[] screenModes)
     {
         IsValid = true;
         Name = name;
@@ -20,7 +20,7 @@ internal readonly struct Win32ScreenData : IEquatable<Win32ScreenData>
         Position = position;
         Size = size;
         SizeInPixels = sizeInPixels;
-        Dpi = dpi;
+        DpiScale = dpiScale;
         CurrentDisplayMode = currentDisplayMode;
         ScreenModes = screenModes;
     }
@@ -44,7 +44,7 @@ internal readonly struct Win32ScreenData : IEquatable<Win32ScreenData>
 
     public readonly Size SizeInPixels;
 
-    public readonly Point Dpi;
+    public readonly DpiScale DpiScale;
 
     public readonly ScreenMode CurrentDisplayMode;
 
@@ -52,7 +52,7 @@ internal readonly struct Win32ScreenData : IEquatable<Win32ScreenData>
 
     public bool Equals(Win32ScreenData other)
     {
-        return IsValid == other.IsValid && Name == other.Name && IsPrimary == other.IsPrimary && Position.Equals(other.Position) && Size.Equals(other.Size) && Dpi.Equals(other.Dpi) && CurrentDisplayMode.Equals(other.CurrentDisplayMode) && ScreenModes.AsSpan().SequenceEqual(other.ScreenModes);
+        return IsValid == other.IsValid && Name == other.Name && IsPrimary == other.IsPrimary && Position.Equals(other.Position) && Size.Equals(other.Size) && DpiScale.Equals(other.DpiScale) && CurrentDisplayMode.Equals(other.CurrentDisplayMode) && ScreenModes.AsSpan().SequenceEqual(other.ScreenModes);
     }
 
     public override bool Equals(object? obj)
@@ -62,7 +62,7 @@ internal readonly struct Win32ScreenData : IEquatable<Win32ScreenData>
 
     public override int GetHashCode()
     {
-        return HashCode.Combine(IsValid, Name, IsPrimary, Position, Size, Dpi);
+        return HashCode.Combine(IsValid, Name, IsPrimary, Position, Size, DpiScale);
     }
 
     public static bool operator ==(Win32ScreenData left, Win32ScreenData right)
@@ -93,6 +93,8 @@ internal readonly struct Win32ScreenData : IEquatable<Win32ScreenData>
                 dpiY = 96;
             }
 
+            var dpiScale = new DpiScale(dpiX, dpiY);
+
             var span = new ReadOnlySpan<char>((char*)monitorInfo.szDevice, 32);
             var index = span.IndexOf((char)0);
             if (index >= 0)
@@ -106,8 +108,8 @@ internal readonly struct Win32ScreenData : IEquatable<Win32ScreenData>
 
             var pixelWidth = monitorInfo.Base.rcMonitor.right - monitorInfo.Base.rcMonitor.left;
             var pixelHeight = monitorInfo.Base.rcMonitor.bottom - monitorInfo.Base.rcMonitor.top;
-            var width = WindowHelper.PixelToLogical(pixelWidth, dpiX);
-            var height = WindowHelper.PixelToLogical(pixelHeight, dpiY);
+            var width = dpiScale.ScalePixelToLogical.X * pixelWidth;
+            var height = dpiScale.ScalePixelToLogical.Y * pixelHeight;
 
             DEVMODEW devModeW = default;
             devModeW.dmSize = (ushort)sizeof(DEVMODEW);
@@ -133,7 +135,7 @@ internal readonly struct Win32ScreenData : IEquatable<Win32ScreenData>
                 ToDisplayMode(devModeW, out currentDisplayMode);
             }
 
-            screenData = new Win32ScreenData(name, isPrimary, new Point(pixelPositionX, pixelPositionY), new SizeF(width, height), new Size(pixelWidth, pixelHeight), new Point(dpiX, dpiY), currentDisplayMode, displayModes.ToArray());
+            screenData = new Win32ScreenData(name, isPrimary, new Point(pixelPositionX, pixelPositionY), new SizeF(width, height), new Size(pixelWidth, pixelHeight), dpiScale, currentDisplayMode, displayModes.ToArray());
             return true;
         }
         else

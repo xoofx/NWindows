@@ -20,7 +20,17 @@ public abstract class Screen : DispatcherObject
 
     public static Screen? Primary => Dispatcher.Current.ScreenManager.GetPrimaryScreen();
 
-    public static Point PrimaryDpi => Primary?.Dpi ?? new(96, 96);
+    public static ref readonly DpiScale PrimaryDpiScale
+    {
+        get
+        {
+            if (Primary is { } primary)
+            {
+                return ref primary.DpiScale;
+            }
+            return ref DpiScale.Default;
+        }
+    }
 
     public static ReadOnlySpan<Screen> Items => Dispatcher.Current.ScreenManager.GetAllScreens();
 
@@ -38,7 +48,7 @@ public abstract class Screen : DispatcherObject
 
     public abstract SizeF Size { get; }
     
-    public abstract Point Dpi { get; }
+    public abstract ref readonly DpiScale DpiScale { get; }
 
     public abstract ref readonly ScreenMode CurrentDisplayMode { get; }
     
@@ -46,6 +56,6 @@ public abstract class Screen : DispatcherObject
 
     public override string ToString()
     {
-        return $"Screen {nameof(Name)}: {Name}, {nameof(IsPrimary)}: {IsPrimary}, {nameof(Position)}: {Position}, {nameof(SizeInPixels)}: {SizeInPixels}, {nameof(Size)}: {Size}, {nameof(Dpi)}: {Dpi}, {nameof(DisplayModes)}: {DisplayModes.Length}";
+        return $"Screen {nameof(Name)}: {Name}, {nameof(IsPrimary)}: {IsPrimary}, {nameof(Position)}: {Position}, {nameof(SizeInPixels)}: {SizeInPixels}, {nameof(Size)}: {Size}, {nameof(DpiScale)}: {DpiScale}, {nameof(DisplayModes)}: {DisplayModes.Length}";
     }
 }

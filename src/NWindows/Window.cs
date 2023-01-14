@@ -42,7 +42,7 @@ public abstract class Window : DispatcherObject, INativeWindow
 
     public abstract bool HasDecorations { get; set; }
 
-    public abstract Point Dpi { get; }
+    public abstract DpiScale DpiScale { get; set; }
 
     public abstract Color BackgroundColor { get; set; }
 
@@ -186,18 +186,18 @@ public abstract class Window : DispatcherObject, INativeWindow
         var currentSize = Size;
         if (currentSize.IsEmpty) return;
 
-        var dpi = Dpi;
+        var dpi = DpiScale;
         bool changed = false;
         var currentPosition = Position;
         if (currentSize.Width <= size.Width)
         {
-            currentPosition.X = position.X + WindowHelper.LogicalToPixel((size.Width - currentSize.Width) / 2, dpi.X);
+            currentPosition.X = position.X + (int)(dpi.ScaleLogicalToPixel.X * (size.Width - currentSize.Width) / 2);
             changed = true;
         }
 
         if (currentSize.Height <= size.Height)
         {
-            currentPosition.Y = position.Y + WindowHelper.LogicalToPixel((size.Height - currentSize.Height) / 2, dpi.Y);
+            currentPosition.Y = position.Y + (int)(dpi.ScaleLogicalToPixel.Y * (size.Height - currentSize.Height) / 2);
             changed = true;
         }
 

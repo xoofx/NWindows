@@ -72,12 +72,12 @@ internal sealed class Win32Screen : Screen
         }
     }
 
-    public override Point Dpi
+    public override ref readonly DpiScale DpiScale
     {
         get
         {
             VerifyAccess();
-            return InternalData.Dpi;
+            return ref InternalData.DpiScale;
         }
     }
 

@@ -60,7 +60,7 @@ internal unsafe class Win32Window : Window
     private bool _isDefaultColorBrush;
     private bool _showInTaskBar;
     private bool _initialShowInTaskBar;
-    private Point _dpi;
+    private DpiScale _dpiScale;
     private readonly Win32DropTarget _dropTarget;
 
     private bool _isFullscreen;
@@ -69,7 +69,7 @@ internal unsafe class Win32Window : Window
     private bool _hasMaximizeableBeforeFullScreen;
     private bool _hasMinimizeableBeforeFullScreen;
     private bool _hasResizeableBeforeFullScreen;
-    private Point _dpiBeforeFullScreen;
+    private DpiScale _dpiScaleBeforeFullScreen;
 
     public Win32Window(WindowCreateOptions options) : base(options)
     {
@@ -143,12 +143,21 @@ internal unsafe class Win32Window : Window
         }
     }
 
-    public override Point Dpi
+    public override DpiScale DpiScale
     {
         get
         {
             VerifyAccess();
-            return _dpi;
+            return _dpiScale;
+        }
+        set
+        {
+            VerifyAccessAndNotDestroyed();
+
+            if (value != _dpiScale)
+            {
+                UpdateDpiScale(value);
+            }
         }
     }
 
@@ -479,7 +488,8 @@ internal unsafe class Win32Window : Window
         var screen = GetScreen();
         if (screen != null)
         {
-            var pixelPosition = new Point(WindowHelper.LogicalToPixel(position.X, screen.Dpi.X), WindowHelper.LogicalToPixel(position.Y, screen.Dpi.Y));
+            var screenDpiScale = screen.DpiScale;
+            var pixelPosition = screenDpiScale.LogicalToPixel(position);
             Windows.ClientToScreen(HWnd, (POINT*)&pixelPosition);
             return pixelPosition;
         }
@@ -496,8 +506,9 @@ internal unsafe class Win32Window : Window
         var screen = GetScreen();
         if (screen != null)
         {
+            var screenDpiScale = screen.DpiScale;
             Windows.ScreenToClient(HWnd, (POINT*)&position);
-            return new PointF(WindowHelper.PixelToLogical(position.X, screen.Dpi.X), WindowHelper.PixelToLogical(position.Y, screen.Dpi.Y));
+            return screenDpiScale.PixelToLogical(position);
         }
         else
         {
@@ -535,9 +546,8 @@ internal unsafe class Win32Window : Window
     {
         get
         {
-            var dpi = Screen.PrimaryDpi;
-            return new SizeF(WindowHelper.PixelToLogical(GetSystemMetrics(SM.SM_CXMINTRACK), dpi.X),
-                WindowHelper.PixelToLogical(GetSystemMetrics(SM.SM_CYMINTRACK), dpi.Y));
+            var size = new Size(GetSystemMetrics(SM.SM_CXMINTRACK), GetSystemMetrics(SM.SM_CYMINTRACK));
+            return Screen.PrimaryDpiScale.PixelToLogical(size);
         }
     }
 
@@ -685,16 +695,14 @@ internal unsafe class Win32Window : Window
 
     private void UpdateDpi(int dpiX, in RECT suggestedRect)
     {
-        var dpi = new Point(dpiX, dpiX);
-        if (dpi != _dpi)
+        var dpiScale = new DpiScale(dpiX, dpiX);
+        if (dpiScale != _dpiScale)
         {
-            var previous = _dpi;
-            _dpi = dpi;
-            OnWindowEvent(new DpiChangedEvent() { PreviousValue = previous, NewValue = dpi });
+            UpdateDpiScale(dpiScale);
 
             var w = suggestedRect.right - suggestedRect.left;
             var h = suggestedRect.bottom - suggestedRect.top;
-
+            
             SetWindowPos(HWnd,
                 HWND.NULL,
                 suggestedRect.left,
@@ -941,17 +949,17 @@ internal unsafe class Win32Window : Window
     private void HandleGetMinMaxInfo(MINMAXINFO* info)
     {
         // This is called at the creation of the window
-        if (_dpi.IsEmpty)
+        if (_dpiScale.IsEmpty)
         {
             var dpiX = Win32Helper.GetDpiForWindowSafe(HWnd);
-            _dpi = new Point(dpiX, dpiX);
+            _dpiScale = new DpiScale(dpiX, dpiX);
         }
         
         if (_resizeable)
         {
             if (!_minimumSize.IsEmpty)
             {
-                *(Size*)&info->ptMinTrackSize = WindowHelper.LogicalToPixel(_minimumSize, _dpi);
+                *(Size*)&info->ptMinTrackSize = _dpiScale.LogicalToPixel(_minimumSize);
 
                 // When the MinTrackSize is set to a value larger than the screen
                 // size but the MaxTrackSize is not set to a value equal to or greater than the
@@ -966,7 +974,7 @@ internal unsafe class Win32Window : Window
                 {
                     // Only set the max track size dimensions if the min track size dimensions
                     // are larger than the VirtualScreen dimensions.
-                    Size virtualScreen = WindowHelper.LogicalToPixel(screen.Size, _dpi);
+                    Size virtualScreen = _dpiScale.LogicalToPixel(screen.Size);
                     if (_minimumSize.Height > virtualScreen.Height)
                     {
                         info->ptMaxTrackSize.y = int.MaxValue;
@@ -981,7 +989,7 @@ internal unsafe class Win32Window : Window
 
             if (!_maximumSize.IsEmpty)
             {
-                var size = WindowHelper.LogicalToPixel(_maximumSize, _dpi);
+                var size = _dpiScale.LogicalToPixel(_maximumSize);
                 // TODO: Max on SystemInformation.MinWindowTrackSize
                 *(Size*)&info->ptMaxTrackSize = size;
             }
@@ -998,7 +1006,7 @@ internal unsafe class Win32Window : Window
             }
             else
             {
-                sizeInPixel = WindowHelper.LogicalToPixel(_size, _dpi);
+                sizeInPixel = _dpiScale.LogicalToPixel(_size);
             }
 
             info->ptMaxSize.x = sizeInPixel.Width;
@@ -1130,7 +1138,7 @@ internal unsafe class Win32Window : Window
         // In a borderless Delegate the detection of the bar to the event handler
         var hitTestEvent = _hitTestEvent;
         hitTestEvent.Handled = false;
-        hitTestEvent.WindowSize = WindowHelper.PixelToLogical(new Size(rcWindow.right - rcWindow.left, rcWindow.bottom - rcWindow.top), _dpi);
+        hitTestEvent.WindowSize = _dpiScale.PixelToLogical(new Size(rcWindow.right - rcWindow.left, rcWindow.bottom - rcWindow.top));
         hitTestEvent.MousePosition = ScreenToClient(new Point(ptMouse.x, ptMouse.y));
 
         OnWindowEvent(hitTestEvent);
@@ -1253,9 +1261,11 @@ internal unsafe class Win32Window : Window
 
     private void ToRectangleLogical(RECT* rect, out RectangleF rectF)
     {
-        var dpi = _dpi;
-        rectF = new RectangleF(WindowHelper.PixelToLogical(rect->left, dpi.X), WindowHelper.PixelToLogical(rect->top, dpi.Y), WindowHelper.PixelToLogical(rect->right - rect->left, dpi.X),
-            WindowHelper.PixelToLogical(rect->bottom - rect->top, dpi.Y));
+        var dpi = _dpiScale;
+
+        var position = new Point(rect->left, rect->right);
+        var size = new Size(rect->right - rect->left, rect->bottom - rect->top);
+        rectF = new RectangleF(dpi.PixelToLogical(position), dpi.PixelToLogical(size));
     }
 
     internal void HandleSizeChanged(int sizeKind)
@@ -1283,9 +1293,7 @@ internal unsafe class Win32Window : Window
     internal void HandlePositionChanged(WINDOWPOS* pos)
     {
         var position = new Point(pos->x, pos->y);
-
-        var dpi = _dpi;
-        var size = new SizeF(WindowHelper.PixelToLogical(pos->cx, dpi.X), WindowHelper.PixelToLogical(pos->cy, dpi.Y));
+        var size = _dpiScale.PixelToLogical(new Size(pos->cx, pos->cy));
 
         bool posChanged = false;
         bool sizeChanged = false;
@@ -1326,7 +1334,7 @@ internal unsafe class Win32Window : Window
         var pixelPositionX = GET_X_LPARAM(lParam);
         var pixelPositionY = GET_Y_LPARAM(lParam);
 
-        mouse.Position = WindowHelper.PixelToLogical(new Point(pixelPositionX, pixelPositionY), _dpi);
+        mouse.Position = _dpiScale.PixelToLogical(new Point(pixelPositionX, pixelPositionY));
 
         if (message == WM_MOUSEMOVE && !_mouseTracked)
         {
@@ -1507,6 +1515,21 @@ internal unsafe class Win32Window : Window
             OnFrameEvent(FrameEventKind.DecorationsChanged);
         }
     }
+    private void UpdateDpiScale(DpiScale dpiScale)
+    {
+        // Always
+        //value = new PointF(Math.Clamp(value.X, 1.0f, 10.0f), Math.Clamp(value.X, 1.0f, 10.0f));
+
+        // TODO force window to adapt to DPI scaling
+
+        _dpiScale = dpiScale;
+
+        if (_dpiScale != dpiScale)
+        {
+            OnFrameEvent(FrameEventKind.DpiScaleChanged);
+        }
+    }
+
 
     private void UpdateBackgroundColor(Color value, bool notify = true)
     {
@@ -1542,7 +1565,7 @@ internal unsafe class Win32Window : Window
 
     private void UpdateSize(SizeF value)
     {
-        var screenSize = WindowHelper.LogicalToPixel(value, _dpi);
+        var screenSize = _dpiScale.LogicalToPixel(value);
         SetWindowPos(HWnd, HWND.NULL, 0, 0, screenSize.Width, screenSize.Height, SWP.SWP_NOMOVE | SWP.SWP_NOACTIVATE | SWP.SWP_NOZORDER);
         // Notify is handled by HandlePositionChanged
     }
@@ -1902,7 +1925,7 @@ internal unsafe class Win32Window : Window
             _hasMinimizeableBeforeFullScreen = _minimizeable;
             _hasMaximizeableBeforeFullScreen = _maximizeable;
             _hasResizeableBeforeFullScreen = _resizeable;
-            _dpiBeforeFullScreen = _dpi;
+            _dpiScaleBeforeFullScreen = _dpiScale;
 
             // The window won't have any decorations and won't be maximizeable in fullscreen mode
             _isFullscreen = true;
@@ -1911,11 +1934,11 @@ internal unsafe class Win32Window : Window
         // Keep the dpi
         if (changeOfResolution)
         {
-            var oldDpi = _dpi;
-            _dpi = new Point(96, 96);
-            if (oldDpi != _dpi)
+            var oldDpiScale = _dpiScale;
+            _dpiScale = DpiScale.Default;
+            if (oldDpiScale != _dpiScale)
             {
-                OnWindowEvent(new DpiChangedEvent() { PreviousValue = oldDpi, NewValue = _dpi });
+                OnFrameEvent(FrameEventKind.DpiScaleChanged);
             }
         }
 
@@ -1979,11 +2002,11 @@ internal unsafe class Win32Window : Window
             ExitExclusiveFullScreen();
 
             // If we switch from exclusive to fullscreen, restore the DPI
-            var oldDpi = _dpi;
-            _dpi = _dpiBeforeFullScreen;
-            if (oldDpi != _dpi)
+            var oldDpiScale = _dpiScale;
+            _dpiScale = _dpiScaleBeforeFullScreen;
+            if (oldDpiScale != _dpiScale)
             {
-                OnWindowEvent(new DpiChangedEvent() { PreviousValue = oldDpi, NewValue = _dpi });
+                OnFrameEvent(FrameEventKind.DpiScaleChanged);
             }
 
             // Set the window position
@@ -2014,11 +2037,11 @@ internal unsafe class Win32Window : Window
             ExitExclusiveFullScreen();
         }
 
-        var oldDpi = _dpi;
-        _dpi = _dpiBeforeFullScreen;
-        if (oldDpi != _dpi)
+        var oldDpiScale = _dpiScale;
+        _dpiScale = _dpiScaleBeforeFullScreen;
+        if (oldDpiScale != _dpiScale)
         {
-            OnWindowEvent(new DpiChangedEvent() { PreviousValue = oldDpi, NewValue = _dpi });
+            OnFrameEvent(FrameEventKind.DpiScaleChanged);
         }
         
         var width = _windowRectBeforeFullScreen.right - _windowRectBeforeFullScreen.left;
@@ -2039,7 +2062,7 @@ internal unsafe class Win32Window : Window
         _hasMaximizeableBeforeFullScreen = default;
         _hasDecorationsBeforeFullScreen = default;
         _windowRectBeforeFullScreen = default;
-        _dpiBeforeFullScreen = default;
+        _dpiScaleBeforeFullScreen = default;
     }
 
     private void ExitExclusiveFullScreen()
@@ -2143,18 +2166,18 @@ internal unsafe class Win32Window : Window
             }
 
             var screen = Screen.Primary;
-            if (!options.Decorations && screen != null)
+            if (screen != null)
             {
                 if (width == CW_USEDEFAULT || height == CW_USEDEFAULT)
                 {
-                    width = WindowHelper.LogicalToPixel(screen.Size.Width * 0.80f, screen.Dpi.X);
-                    height = WindowHelper.LogicalToPixel(screen.Size.Height * 0.80f, screen.Dpi.Y);
+                    width = (int)(screen.SizeInPixels.Width * 0.80f);
+                    height = (int)(screen.SizeInPixels.Height * 0.80f);
                 }
 
                 if (positionX == CW_USEDEFAULT || positionY == CW_USEDEFAULT)
                 {
-                    positionX = WindowHelper.LogicalToPixel(screen.Size.Width * 0.10f, screen.Dpi.X);
-                    positionY = WindowHelper.LogicalToPixel(screen.Size.Height * 0.10f, screen.Dpi.Y);
+                    positionX = (int)(screen.SizeInPixels.Width * 0.10f);
+                    positionY = (int)(screen.SizeInPixels.Height * 0.10f);
                 }
             }
 

@@ -5,6 +5,7 @@
 namespace NWindows;
 
 public record WindowState
+
 {
     internal  WindowState(WindowStateKind kind)
     {

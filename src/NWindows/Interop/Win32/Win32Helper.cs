@@ -234,13 +234,6 @@ internal static class Win32Helper
         return true;
     }
 
-
-
-
-
-
-
-
     public static unsafe int GetDpiForWindowSafe(HWND hWnd)
     {
         while ((GetWindowStyle(hWnd) & WS.WS_CHILD) != 0)
@@ -278,7 +271,8 @@ internal static class Win32Helper
             var heightInPixel = rect.bottom - rect.top;
             if (widthInPixel != 0 || heightInPixel != 0)
             {
-                var size = new SizeF(WindowHelper.PixelToLogical(widthInPixel, dpi), WindowHelper.PixelToLogical(heightInPixel, dpi));
+                var dpiScale = new DpiScale(dpi, dpi);
+                var size = dpiScale.PixelToLogical(new Size(widthInPixel, heightInPixel));
                 bounds = (position, size, dpi, rect);
                 return true;
             }

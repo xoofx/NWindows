@@ -35,7 +35,7 @@ public enum FrameEventKind
     MinimizeableChanged,
     BackgroundColorChanged,
     ShowInTaskBarChanged,
-    DpiChanged,
+    DpiScaleChanged,
     DragDropChanged,
     ClipboardChanged,
     DecorationsChanged
