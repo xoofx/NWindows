@@ -16,11 +16,8 @@ using static TerraFX.Interop.Windows.Windows;
 using static TerraFX.Interop.Windows.WM;
 using static TerraFX.Interop.Windows.TME;
 using System.Diagnostics;
-using System.Runtime.Intrinsics.Arm;
 
 namespace NWindows.Interop.Win32;
-
-// Check about hittest https://github.com/microsoft/terminal/blob/547349af77df16d0eed1c73ba3041c84f7b063da/src/cascadia/WindowsTerminal/NonClientIslandWindow.cpp
 
 // TODO to handle:
 // - WM_POINTERUPDATE https://learn.microsoft.com/en-us/windows/win32/inputmsg/wm-pointerupdate
@@ -66,7 +63,7 @@ internal unsafe class Win32Window : Window
     private readonly Win32DropTarget _dropTarget;
 
     private bool _isFullscreen;
-    private RECT _windowRectBeforeFullScreen;
+    private Rectangle _windowRectBeforeFullScreen;
     private bool _hasDecorationsBeforeFullScreen;
     private bool _hasMaximizeableBeforeFullScreen;
     private bool _hasMinimizeableBeforeFullScreen;
@@ -122,6 +119,8 @@ internal unsafe class Win32Window : Window
         set
         {
             VerifyAccessAndNotDestroyed();
+            VerifyNotFullScreen();
+
             if (value != _enable)
             {
                 UpdateEnable(value);
@@ -139,6 +138,9 @@ internal unsafe class Win32Window : Window
         set
         {
             VerifyAccessAndNotDestroyed();
+            VerifyNotChild();
+            VerifyNotFullScreen();
+
             if (value != _enable)
             {
                 UpdateDecorations(value);
@@ -213,6 +215,8 @@ internal unsafe class Win32Window : Window
         set
         {
             VerifyAccessAndNotDestroyed();
+            VerifyNotChild();
+
             if (!string.Equals(_title, value, StringComparison.Ordinal))
             {
                 UpdateTitle(value);
@@ -230,6 +234,9 @@ internal unsafe class Win32Window : Window
         set
         {
             VerifyAccessAndNotDestroyed();
+            VerifyNotChild();
+            VerifyNotFullScreen();
+
             if (value != _size)
             {
                 UpdateSize(value);
@@ -247,6 +254,12 @@ internal unsafe class Win32Window : Window
         set
         {
             VerifyAccessAndNotDestroyed();
+            VerifyNotChild();
+            VerifyNotExclusiveFullScreen();
+
+            // TODO: For fullscreen, we might be able to move the position to snap to screens
+            // but if they have a different resolution, we would have to change their size as well.
+
             if (value != _position)
             {
                 UpdatePosition(value);
@@ -300,6 +313,7 @@ internal unsafe class Win32Window : Window
         set
         {
             VerifyAccessAndNotDestroyed();
+            VerifyNotFullScreen();
 
             if (_resizeable != value)
             {
@@ -318,7 +332,9 @@ internal unsafe class Win32Window : Window
         set
         {
             VerifyAccess();
+            VerifyNotChild();
             VerifyResizeable();
+            VerifyNotFullScreen();
 
             if (_maximizeable != value)
             {
@@ -338,6 +354,9 @@ internal unsafe class Win32Window : Window
         set
         {
             VerifyAccess();
+            VerifyNotChild();
+            VerifyNotFullScreen();
+
             if (_minimizeable != value)
             {
                 UpdateMinimizeable(value);
@@ -357,6 +376,8 @@ internal unsafe class Win32Window : Window
         set
         {
             VerifyAccessAndNotDestroyed();
+            VerifyNotChild();
+            
             if (_state != value)
             {
                 UpdateWindowState(value);
@@ -409,6 +430,8 @@ internal unsafe class Win32Window : Window
         set
         {
             VerifyAccessAndNotDestroyed();
+            VerifyNotFullScreen();
+
             if (!_minimumSize.Equals(value))
             {
                 if (value.Width < 0 || value.Height < 0)
@@ -431,6 +454,8 @@ internal unsafe class Win32Window : Window
         set
         {
             VerifyAccessAndNotDestroyed();
+            VerifyNotFullScreenAndNotMaximized();
+
             if (!_maximumSize.Equals(value))
             {
                 if (value.Width < 0 || value.Height < 0)
@@ -541,14 +566,25 @@ internal unsafe class Win32Window : Window
     public override Screen? GetScreen()
     {
         VerifyAccessAndNotDestroyed();
-        var handle = MonitorFromWindow(HWnd, MONITOR.MONITOR_DEFAULTTONEAREST);
+        return GetScreenFromHWnd(HWnd);
+    }
+
+    private Screen? GetScreenFromHWnd(HWND hWnd)
+    {
+        if (hWnd == IntPtr.Zero)
+        {
+            System.Diagnostics.Debugger.Break();
+        }
+        var handle = MonitorFromWindow(hWnd, MONITOR.MONITOR_DEFAULTTONULL);
         Dispatcher.ScreenManager.TryGetScreen(handle, out var screen);
         return screen;
     }
 
     public override void CenterToParent()
     {
+        VerifyAccessAndNotDestroyed();
         VerifyNotChild();
+        VerifyNotFullScreenAndNotMaximized();
 
         var parent = Parent;
         if (parent != null && Win32Helper.TryGetWindowPositionAndSize((HWND)parent.Handle, out var bounds))
@@ -561,15 +597,37 @@ internal unsafe class Win32Window : Window
         }
     }
 
+    public override void CenterToScreen()
+    {
+        VerifyAccessAndNotDestroyed();
+        VerifyNotChild();
+        VerifyNotFullScreenAndNotMaximized();
+
+        var screen = GetScreenOrPrimary();
+        if (screen != null)
+        {
+            CenterPositionFromBounds(screen.Bounds);
+        }
+    }
+
     /// <summary>
     ///  Gets the system's default minimum tracking dimensions of a window in pixels.
     /// </summary>
-    private static SizeF MinWindowTrackSize
+    private static Size MinWindowTrackSize
     {
         get
         {
             var size = new Size(GetSystemMetrics(SM.SM_CXMINTRACK), GetSystemMetrics(SM.SM_CYMINTRACK));
-            return Screen.PrimaryDpi.PixelToLogical(size);
+            return size;
+        }
+    }
+
+    private static Size MaxWindowTrackSize
+    {
+        get
+        {
+            var size = new Size(GetSystemMetrics(SM.SM_CXMAXTRACK), GetSystemMetrics(SM.SM_CYMAXTRACK));
+            return size;
         }
     }
 
@@ -639,7 +697,7 @@ internal unsafe class Win32Window : Window
                 break;
 
             case WM_GETMINMAXINFO:
-                HandleGetMinMaxInfo((MINMAXINFO*)lParam);
+                HandleGetMinMaxInfo(hWnd, (MINMAXINFO*)lParam);
                 result = 0;
                 break;
 
@@ -925,7 +983,7 @@ internal unsafe class Win32Window : Window
         {
             case WM_NCCALCSIZE:
                 // https://learn.microsoft.com/en-us/windows/win32/dwm/customframe
-                HandleBorderLessNonClientCalculateClientSize(wParam, (NCCALCSIZE_PARAMS*)lParam);
+                HandleBorderLessNonClientCalculateClientSize(hWnd, wParam, (NCCALCSIZE_PARAMS*)lParam);
                 return 0;
 
             case WM_NCHITTEST:
@@ -974,23 +1032,27 @@ internal unsafe class Win32Window : Window
 
         return -1;
     }
-    private void HandleGetMinMaxInfo(MINMAXINFO* info)
+    private void HandleGetMinMaxInfo(HWND hWnd, MINMAXINFO* info)
     {
         // This is called at the creation of the window
         // By default DPI mode must be Auto
         if (_dpi.IsEmpty)
         {
             Debug.Assert(_dpiMode == DpiMode.Auto);
-            var dpiX = Win32Helper.GetDpiForWindowSafe(HWnd);
+            var dpiX = Win32Helper.GetDpiForWindowSafe(hWnd);
             _dpi = new Dpi(dpiX, dpiX);
         }
         
         if (_resizeable)
         {
-            if (!_minimumSize.IsEmpty)
-            {
-                *(Size*)&info->ptMinTrackSize = _dpi.LogicalToPixel(_minimumSize);
+            var minimumWindowTrackSize = MinWindowTrackSize;
+            var minimumSize = _dpi.LogicalToPixel(_minimumSize);
+            minimumSize = new Size(Math.Max(minimumWindowTrackSize.Width, minimumSize.Width), Math.Max(minimumWindowTrackSize.Height, minimumSize.Height));
 
+            // We only apply minimum size to top level window
+            if (Kind == WindowKind.TopLevel)
+            {
+                * (Size*)&info->ptMinTrackSize = minimumSize;
                 // When the MinTrackSize is set to a value larger than the screen
                 // size but the MaxTrackSize is not set to a value equal to or greater than the
                 // MinTrackSize and the user attempts to "grab" a resizing handle, Windows makes
@@ -999,18 +1061,18 @@ internal unsafe class Win32Window : Window
                 // So, the workaround to prevent this problem is to set the MaxTrackSize to something
                 // whenever the MinTrackSize is set to a value larger than the respective dimension
                 // of the virtual screen.
-                var screen = GetScreen();
+                var screen = GetScreenFromHWnd(hWnd);
                 if (_maximumSize.IsEmpty && screen != null)
                 {
                     // Only set the max track size dimensions if the min track size dimensions
                     // are larger than the VirtualScreen dimensions.
                     Size virtualScreen = _dpi.LogicalToPixel(screen.Size);
-                    if (_minimumSize.Height > virtualScreen.Height)
+                    if (minimumSize.Height > virtualScreen.Height)
                     {
                         info->ptMaxTrackSize.y = int.MaxValue;
                     }
 
-                    if (_minimumSize.Width > virtualScreen.Width)
+                    if (minimumSize.Width > virtualScreen.Width)
                     {
                         info->ptMaxTrackSize.x = int.MaxValue;
                     }
@@ -1019,35 +1081,53 @@ internal unsafe class Win32Window : Window
 
             if (!_maximumSize.IsEmpty)
             {
-                var size = _dpi.LogicalToPixel(_maximumSize);
-                // TODO: Max on SystemInformation.MinWindowTrackSize
-                *(Size*)&info->ptMaxTrackSize = size;
+                var maximumSize = _dpi.LogicalToPixel(_maximumSize);
+                maximumSize = new Size(Math.Max(minimumSize.Width, maximumSize.Width), Math.Max(minimumSize.Height, maximumSize.Height));
+                *(Size*)&info->ptMaxTrackSize = maximumSize;
             }
-
-            // TODO: set MaxSize/MaxPosition
         }
         else
         {
-            Size sizeInPixel;
-            // Force the size to full screen
-            if (_isFullscreen && GetScreen() is {} screen)
+            var sizeInPixel = _dpi.LogicalToPixel(_size);
+            if (_isFullscreen)
             {
-                sizeInPixel = screen.SizeInPixels;
+                // We let the min and max size flexible as we need to adjust it
+                // accordingly to the screen resolution
+                var minWindowTrackSize = MinWindowTrackSize;
+                var maxWindowTrackSize = MaxWindowTrackSize;
+                info->ptMinTrackSize.x = minWindowTrackSize.Width;
+                info->ptMinTrackSize.y = minWindowTrackSize.Height;
+                info->ptMaxTrackSize.x = maxWindowTrackSize.Width;
+                info->ptMaxTrackSize.y = maxWindowTrackSize.Height;
             }
             else
             {
-                sizeInPixel = _dpi.LogicalToPixel(_size);
+                // Otherwise we force the window to keep its current size
+                info->ptMinTrackSize.x = sizeInPixel.Width;
+                info->ptMinTrackSize.y = sizeInPixel.Height;
+                info->ptMaxTrackSize.x = sizeInPixel.Width;
+                info->ptMaxTrackSize.y = sizeInPixel.Height;
             }
-
-            info->ptMaxSize.x = sizeInPixel.Width;
-            info->ptMaxSize.y = sizeInPixel.Height;
-            info->ptMaxPosition.x = _position.X;
-            info->ptMaxPosition.y = _position.Y;
-            info->ptMinTrackSize.x = sizeInPixel.Width;
-            info->ptMinTrackSize.y = sizeInPixel.Height;
-            info->ptMaxTrackSize.x = sizeInPixel.Width;
-            info->ptMaxTrackSize.y = sizeInPixel.Height;
         }
+
+        // How does the window manager adjust ptMaxSize and ptMaxPosition for multiple monitors?
+        // See https://devblogs.microsoft.com/oldnewthing/20150501-00/?p=44964
+        var screenForMaxPosition = Screen.Primary;
+        if (screenForMaxPosition == null) return;
+
+        // From: https://learn.microsoft.com/en-us/windows/win32/api/winuser/ns-winuser-minmaxinfo
+        // For systems with multiple monitors, the ptMaxSize and ptMaxPosition members describe the maximized size
+        // and position of the window on the primary monitor, even if the window ultimately maximizes onto
+        // a secondary monitor.
+        // In that case, the window manager adjusts these values to compensate for differences between the primary
+        // monitor and the monitor that displays the window.
+        // Thus, if the user leaves ptMaxSize untouched, a window on a monitor larger than the primary monitor
+        // maximizes to the size of the larger monitor.
+
+        info->ptMaxSize.x = screenForMaxPosition.SizeInPixels.Width;
+        info->ptMaxSize.y = screenForMaxPosition.SizeInPixels.Height;
+        info->ptMaxPosition.x = screenForMaxPosition.Position.X;
+        info->ptMaxPosition.y = screenForMaxPosition.Position.Y;
     }
 
     private void UpdateThemeActive()
@@ -1082,7 +1162,7 @@ internal unsafe class Win32Window : Window
         OnFrameEvent(FrameEventKind.Created);
     }
 
-    private unsafe void HandleBorderLessNonClientCalculateClientSize(WPARAM wParam, NCCALCSIZE_PARAMS* pnCsp)
+    private unsafe void HandleBorderLessNonClientCalculateClientSize(HWND hWnd, WPARAM wParam, NCCALCSIZE_PARAMS* pnCsp)
     {
         ref var rect = ref pnCsp->rgrc[0];
 
@@ -1105,7 +1185,7 @@ internal unsafe class Win32Window : Window
             rect.right = client.right;
             rect.bottom = client.bottom;
 
-            var screen = GetScreen();
+            var screen = GetScreenFromHWnd(hWnd);
             if (screen != null)
             {
                 MONITORINFO mi = default;
@@ -1300,6 +1380,9 @@ internal unsafe class Win32Window : Window
 
     internal void HandleSizeChanged(int sizeKind)
     {
+        // We don't change the state while in fullscreen mode
+        if (_isFullscreen) return;
+
         if (sizeKind == SIZE_MAXIMIZED)
         {
             _state = WindowState.Maximized;
@@ -1566,7 +1649,6 @@ internal unsafe class Win32Window : Window
             if (State.Kind != WindowStateKind.ExclusiveFullScreen)
             {
                 // TODO: case of the Exclusive fullscreen in desktop resolution?
-
                 UpdateDpi(defaultDpi);
             }
         }
@@ -1942,81 +2024,61 @@ internal unsafe class Win32Window : Window
 
     private bool SwitchToFullScreen(WindowState state)
     {
-        var screen = GetScreen();
+        var screen = GetScreenOrPrimary();
         if (screen == null) return false;
 
-        // The size of the window must match the size of the screen if we haven't specified an exclusive size
-        var currentMode = screen.CurrentDisplayMode;
-        var requestedMode = currentMode;
-
-        bool changeOfResolution = false;
-
-        // In case of exclusive, we make sure that the mode is supported
-        if (state is WindowState.ExclusiveFullScreen exclusive)
-        {
-            requestedMode = exclusive.Mode;
-            var indexOfScreen = screen.DisplayModes.IndexOf(requestedMode);
-            if (indexOfScreen < 0) return false;
-
-            changeOfResolution = currentMode.Width != requestedMode.Width || currentMode.Height != requestedMode.Height;
-        }
-
         // If we are switching to fullscreen (exclusive or not), save the size/decorations of the window 
-        if (!_state.IsFullScreen)
+        if (!_isFullscreen)
         {
             RECT windowRect;
             GetWindowRect(HWnd, &windowRect);
-            _windowRectBeforeFullScreen = windowRect;
+            _windowRectBeforeFullScreen = windowRect.ToRectangle();
             _hasDecorationsBeforeFullScreen = _hasDecorations;
             _hasMinimizeableBeforeFullScreen = _minimizeable;
             _hasMaximizeableBeforeFullScreen = _maximizeable;
             _hasResizeableBeforeFullScreen = _resizeable;
             _dpiBeforeFullScreen = _dpi;
 
-            // The window won't have any decorations and won't be maximizeable in fullscreen mode
             _isFullscreen = true;
         }
 
-        // Keep the dpi
-        if (changeOfResolution)
-        {
-            if (_dpiMode == DpiMode.Auto)
-            {
-                var oldDpi = _dpi;
-                _dpi = Dpi.Default;
-                if (oldDpi != _dpi)
-                {
-                    OnFrameEvent(FrameEventKind.DpiChanged);
-                }
-            }
-        }
-
+        // Update the style of the window
         UpdateMaximizeable(false, false);
         UpdateMinimizeable(false, false);
         UpdateResizeable(false, false);
         UpdateDecorations(false, true, false);
 
         bool success = true;
-        if (state is WindowState.ExclusiveFullScreen)
+        if (state is WindowState.ExclusiveFullScreen exclusive)
         {
-            // Set the window position
-            SetWindowPos(HWnd, HWND.NULL, screen.Position.X, screen.Position.Y, requestedMode.Width, requestedMode.Height, SWP.SWP_NOZORDER | SWP.SWP_NOACTIVATE);
+            var exclusiveScreenMode = exclusive.Mode;
+            var isResolutionDifferentFromRegistry = exclusiveScreenMode.Size != screen.SystemDisplayMode.Size;
+
+            // Set the window position before changing the DPI
+            // so that it won't stretch on other screens while changing the display settings
+            SetWindowPos(HWnd, HWND.NULL, screen.Position.X, screen.Position.Y, exclusiveScreenMode.Width, exclusiveScreenMode.Height, SWP.SWP_NOZORDER | SWP.SWP_NOACTIVATE);
+
+            // Keep the dpi
+            if (isResolutionDifferentFromRegistry && _dpiMode == DpiMode.Auto)
+            {
+                UpdateDpi(Dpi.Default);
+            }
+
+            DEVMODEW devModeW = default;
+            devModeW.dmSize = (ushort)sizeof(DEVMODEW);
+
+            // Save the mouse position before switching mode
+            var position = Mouse.Position;
+            var mouseRelativePosition = new PointF((float)(position.X - screen.Position.X) / screen.SizeInPixels.Width, (float)(position.Y - screen.Position.Y) / screen.SizeInPixels.Height);
 
             fixed (char* displayName = screen.Name)
             {
-                DEVMODEW devModeW = default;
-                devModeW.dmSize = (ushort)sizeof(DEVMODEW);
-
-                // Save the mouse position before switching mode
-                var position = Mouse.Position;
-                var mouseRelativePosition = new PointF((float)(position.X - screen.Position.X) / screen.SizeInPixels.Width, (float)(position.Y - screen.Position.Y) / screen.SizeInPixels.Height);
-
                 EnumDisplaySettingsExW((ushort*)displayName, ENUM.ENUM_CURRENT_SETTINGS, &devModeW, 0);
 
-                devModeW.dmBitsPerPel = (uint)requestedMode.BitsPerPixel;
-                devModeW.dmPelsWidth = (uint)requestedMode.Width;
-                devModeW.dmPelsHeight = (uint)requestedMode.Height;
-                devModeW.dmDisplayFrequency = (uint)requestedMode.Frequency;
+                devModeW.dmBitsPerPel = (uint)exclusiveScreenMode.BitsPerPixel;
+                devModeW.dmPelsWidth = (uint)exclusiveScreenMode.Width;
+                devModeW.dmPelsHeight = (uint)exclusiveScreenMode.Height;
+                devModeW.dmDisplayFrequency = (uint)exclusiveScreenMode.Frequency;
                 devModeW.dmFields =
                     DM.DM_PELSWIDTH |
                     DM.DM_PELSHEIGHT |
@@ -2025,7 +2087,10 @@ internal unsafe class Win32Window : Window
 
                 var result = ChangeDisplaySettingsExW((ushort*)displayName, &devModeW, HWND.NULL, CDS.CDS_FULLSCREEN, null);
                 success = result == DISP.DISP_CHANGE_SUCCESSFUL;
+            }
 
+            if (success)
+            {
                 // Similar to https://github.com/rust-windowing/winit/blob/9225b2812edcdc8abc049f4811361e10cc94cee0/src/platform_impl/windows/window.rs#LL555-L562C39
                 // Seems that `ChangeDisplaySettingsExW can take a long time enough that DWM
                 // will think that our program is frozen and will take over and won't make our Window fully fullscreen.
@@ -2036,13 +2101,13 @@ internal unsafe class Win32Window : Window
                 MSG msg;
                 PeekMessageW(&msg, HWND.NULL, wMsgFilterMin: WM_NULL, wMsgFilterMax: WM_NULL, wRemoveMsg: PM.PM_NOREMOVE);
 
-                // Make sure to reset the window
-                SetWindowPos(HWnd, HWND.NULL, screen.Position.X, screen.Position.Y, requestedMode.Width, requestedMode.Height, SWP.SWP_NOZORDER | SWP.SWP_NOACTIVATE);
+                // Make sure to reset the size of the window, should result in the same than the initial SetWindowPos above
+                SetWindowPos(HWnd, HWND.NULL, screen.Position.X, screen.Position.Y, exclusiveScreenMode.Width, exclusiveScreenMode.Height, SWP.SWP_NOZORDER | SWP.SWP_NOACTIVATE);
 
                 // Restore the mouse position after with similar relative coordinates
                 if (mouseRelativePosition.X >= 0 && mouseRelativePosition.Y >= 0 && mouseRelativePosition.X <= 1.0f && mouseRelativePosition.Y <= 1.0f)
                 {
-                    Mouse.Position = new Point((int)(mouseRelativePosition.X * requestedMode.Width) + screen.Position.X, (int)(mouseRelativePosition.Y * requestedMode.Height) + screen.Position.Y);
+                    Mouse.Position = new Point((int)(mouseRelativePosition.X * exclusiveScreenMode.Width) + screen.Position.X, (int)(mouseRelativePosition.Y * exclusiveScreenMode.Height) + screen.Position.Y);
                 }
             }
         }
@@ -2053,12 +2118,7 @@ internal unsafe class Win32Window : Window
             // If we switch from exclusive to fullscreen, restore the DPI
             if (_dpiMode == DpiMode.Auto)
             {
-                var oldDpi = _dpi;
-                _dpi = _dpiBeforeFullScreen;
-                if (oldDpi != _dpi)
-                {
-                    OnFrameEvent(FrameEventKind.DpiChanged);
-                }
+                UpdateDpi(_dpiBeforeFullScreen);
             }
 
             // Set the window position
@@ -2094,16 +2154,8 @@ internal unsafe class Win32Window : Window
 
         if (_dpiMode == DpiMode.Auto)
         {
-            var oldDpi = _dpi;
-            _dpi = _dpiBeforeFullScreen;
-            if (oldDpi != _dpi)
-            {
-                OnFrameEvent(FrameEventKind.DpiChanged);
-            }
+            UpdateDpi(_dpiBeforeFullScreen);
         }
-
-        var width = _windowRectBeforeFullScreen.right - _windowRectBeforeFullScreen.left;
-        var height = _windowRectBeforeFullScreen.bottom - _windowRectBeforeFullScreen.top;
 
         UpdateMinimizeable(_hasMinimizeableBeforeFullScreen, false);
         UpdateMaximizeable(_hasMaximizeableBeforeFullScreen, false);
@@ -2111,7 +2163,7 @@ internal unsafe class Win32Window : Window
         UpdateDecorations(_hasDecorationsBeforeFullScreen, invalidate: false);
 
         // Restore the Window position
-        SetWindowPos(HWnd, HWND.NULL, _windowRectBeforeFullScreen.left, _windowRectBeforeFullScreen.top, width, height, SWP.SWP_NOZORDER | SWP.SWP_NOACTIVATE);
+        SetWindowPos(HWnd, HWND.NULL, _windowRectBeforeFullScreen.X, _windowRectBeforeFullScreen.Y, _windowRectBeforeFullScreen.Width, _windowRectBeforeFullScreen.Height, SWP.SWP_NOZORDER | SWP.SWP_NOACTIVATE);
 
         InvalidateRect(HWnd, null, false);
         UpdateWindow(HWnd);
@@ -2384,5 +2436,19 @@ internal unsafe class Win32Window : Window
         {
             throw new InvalidOperationException("This window has been closed and destroyed.");
         }
+    }
+
+    private void VerifyNotFullScreen()
+    {
+        if (_isFullscreen) throw new ArgumentException("Cannot change this property when the screen is in fullscreen");
+    }
+    private void VerifyNotExclusiveFullScreen()
+    {
+        if (_state is WindowState.ExclusiveFullScreen) throw new ArgumentException("Cannot change this property when the screen is in fullscreen");
+    }
+    private void VerifyNotFullScreenAndNotMaximized()
+    {
+        VerifyNotFullScreen();
+        if (_state.Kind == WindowStateKind.Maximized) throw new ArgumentException("Cannot change this property when the screen is maximized");
     }
 }

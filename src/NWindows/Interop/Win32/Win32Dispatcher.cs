@@ -444,7 +444,7 @@ internal unsafe class Win32Dispatcher : Dispatcher
         if (nCode == HC_ACTION)
         {
             var currentDispatcher = (Win32Dispatcher?)TlsCurrentDispatcher;
-            Console.WriteLine($"HC_ACTION {Win32Helper.GetMessageName((uint)wParam)} HasActiveExclusiveScreenWindow: {currentDispatcher?.HasActiveExclusiveFullScreenWindow ?? false}");
+            //Console.WriteLine($"HC_ACTION {Win32Helper.GetMessageName((uint)wParam)} HasActiveExclusiveScreenWindow: {currentDispatcher?.HasActiveExclusiveFullScreenWindow ?? false}");
             var p = (KBDLLHOOKSTRUCT*)lParam;
             switch ((int)wParam)
             {

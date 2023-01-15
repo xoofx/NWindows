@@ -41,7 +41,7 @@ Clipboard.SetData(customFormat, "Hello World From Custom Format");
 var test3 = Clipboard.GetData(customFormat);
 
 
-Dispatcher.Current.EnableDebug = true;
+//Dispatcher.Current.EnableDebug = true;
 //Dispatcher.Current.DebugOutput = Console.Out.WriteLine;
 
 var window = Window.Create(new ()
@@ -71,11 +71,15 @@ Dispatcher.Current.Run();
 
 static void EventsOnAll(Window window, WindowEvent evt)
 {
-    Console.WriteLine(evt);
-    if (evt is MouseEvent mouseEvent)
+    if (evt is not MouseEvent || (evt is MouseEvent mouseEvent && (mouseEvent.Button != MouseButton.None || mouseEvent.Pressed != MouseButtonFlags.None)))
     {
-        Console.WriteLine($"Mouse Position: {Mouse.Position} LeftButton: {Mouse.LeftButton}");
-        if ((mouseEvent.Pressed & MouseButtonFlags.Left) != 0)
+        Console.WriteLine(evt);
+    }
+
+    if (evt is MouseEvent mouseEvt)
+    {
+        //Console.WriteLine($"Mouse Position: {Mouse.Position} LeftButton: {Mouse.LeftButton}");
+        if ((mouseEvt.Pressed & MouseButtonFlags.Left) != 0)
         {
             Mouse.SetCursor(Cursor.Hand);
         }

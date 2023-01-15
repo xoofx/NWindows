@@ -98,17 +98,11 @@ public abstract class Window : DispatcherObject, INativeWindow
 
     public abstract Screen? GetScreen();
 
+    public Screen? GetScreenOrPrimary() => GetScreen() ?? Screen.Primary;
+
     public abstract void CenterToParent();
 
-    public void CenterToScreen()
-    {
-        var screen = GetScreen();
-        VerifyNotChild();
-        if (screen != null)
-        {
-            CenterPositionFromBounds(screen.Bounds);
-        }
-    }
+    public abstract void CenterToScreen();
 
     public void ShowDialog()
     {
@@ -162,7 +156,7 @@ public abstract class Window : DispatcherObject, INativeWindow
 
     internal void VerifyNotChild()
     {
-        if (Kind == WindowKind.Child) throw new InvalidOperationException("Window is not a Child. Cannot perform this operation on this kind of window.");
+        if (Kind == WindowKind.Child) throw new InvalidOperationException("Cannot perform this operation on a child window.");
     }
     
     internal void OnWindowEvent(WindowEvent evt)
