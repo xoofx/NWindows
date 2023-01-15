@@ -62,6 +62,8 @@ internal unsafe class Win32Window : Window
     private Dpi _dpi;
     private readonly Win32DropTarget _dropTarget;
 
+    private HICON _windowIcon;
+
     private bool _isFullscreen;
     private Rectangle _windowRectBeforeFullScreen;
     private bool _hasDecorationsBeforeFullScreen;
@@ -660,6 +662,25 @@ internal unsafe class Win32Window : Window
         }
     }
 
+    public override void SetIcon(Icon icon)
+    {
+        VerifyAccessAndNotDestroyed();
+
+        var nativeIcon = Win32Icon.CreateIcon(icon);
+
+        if (nativeIcon != HICON.NULL)
+        {
+            SendMessage(HWnd, WM_SETICON, ICON_BIG, (LPARAM)nativeIcon);
+            SendMessage(HWnd, WM_SETICON, ICON_SMALL, (LPARAM)nativeIcon);
+
+            if (_windowIcon != HICON.NULL)
+            {
+                DestroyIcon(_windowIcon);
+            }
+            _windowIcon = nativeIcon;
+        }
+    }
+
     /// <summary>
     ///  Gets the system's default minimum tracking dimensions of a window in pixels.
     /// </summary>
@@ -979,6 +1000,12 @@ internal unsafe class Win32Window : Window
         _thisGcHandle.Free();
         _thisGcHandle = default;
         _dropTarget.Dispose();
+
+        if (_windowIcon != HICON.NULL)
+        {
+            DestroyIcon(_windowIcon);
+        }
+
         if (!_isDefaultColorBrush)
         {
             DeleteObject(_backgroundColorBrush);
@@ -2398,6 +2425,12 @@ internal unsafe class Win32Window : Window
                         CenterToScreen();
                         break;
                 }
+            }
+
+            // Sets the icon if specified
+            if (options.Icon is { } icon)
+            {
+                SetIcon(icon);
             }
 
             if (options.Visible)

@@ -106,6 +106,8 @@ public abstract class Window : DispatcherObject, INativeWindow
 
     public abstract void CenterToScreen();
 
+    public abstract void SetIcon(Icon icon);
+
     public void ShowDialog()
     {
         VerifyAccess();

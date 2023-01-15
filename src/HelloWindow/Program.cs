@@ -6,6 +6,7 @@ using NWindows.Threading;
 
 //var pngData = Clipboard.GetData(DataFormats.Png);
 
+
 var files = Clipboard.GetData(DataFormats.File);
 if (files != null)
 {
@@ -43,6 +44,22 @@ var test3 = Clipboard.GetData(customFormat);
 
 //Dispatcher.Current.EnableDebug = true;
 //Dispatcher.Current.DebugOutput = Console.Out.WriteLine;
+var icon = Icon.GetApplicationIcon();
+
+var centerX = icon.Width / 2;
+var centerY = icon.Height / 2;
+var rX = (icon.Width - 1) / 2;
+var rY = (icon.Height - 1) / 2;
+var minR = Math.Min(rX, rY);
+int stripeCount = minR / 3;
+for (int i = 0; i < stripeCount; i++)
+{
+    var r = Math.Min(rX, rY) * i / (stripeCount - 1);
+    for (float j = 0.0f; j < 2 * MathF.PI; j += MathF.PI / 360)
+    {
+        icon.PixelAt((int)(r * MathF.Cos(j) + centerX), (int)(r * MathF.Sin(j) + centerY)) = Color.Red;
+    }
+}
 
 var window = Window.Create(new ()
 {
@@ -50,7 +67,8 @@ var window = Window.Create(new ()
     BackgroundColor = Color.DarkSlateGray,
     StartPosition = WindowStartPosition.CenterScreen,
     DragDrop = true,
-    Decorations = false,
+    Icon = icon,
+    //Decorations = false,
 });
 
 //var windowChild = Window.Create(new()
