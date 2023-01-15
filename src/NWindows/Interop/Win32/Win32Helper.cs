@@ -276,7 +276,7 @@ internal static class Win32Helper
             var heightInPixel = rect.bottom - rect.top;
             if (widthInPixel != 0 || heightInPixel != 0)
             {
-                rectangle = new Rectangle(rect.left, rect.right, widthInPixel, heightInPixel);
+                rectangle = new Rectangle(position.X, position.Y, widthInPixel, heightInPixel);
                 return true;
             }
         }

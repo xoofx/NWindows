@@ -65,7 +65,7 @@ var window = Window.Create(new ()
 {
     Title = "Hello World",
     BackgroundColor = Color.DarkSlateGray,
-    StartPosition = WindowStartPosition.CenterScreen,
+    //StartPosition = WindowStartPosition.CenterScreen,
     DragDrop = true,
     Icon = icon,
     //Decorations = false,

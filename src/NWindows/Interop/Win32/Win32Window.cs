@@ -1307,11 +1307,6 @@ internal unsafe class Win32Window : Window
     // Hit test the frame for resizing and moving.
     private LRESULT HitTestNonClientAreaBorderLess(HWND hWnd, WPARAM wParam, LPARAM lParam)
     {
-        if (IsMaximized(HWnd) || _isFullscreen)
-        {
-            return HTCLIENT;
-        }
-
         // Mouse with screen coordinates
         POINT ptMouse = new POINT() { x = GET_X_LPARAM(lParam), y = GET_Y_LPARAM(lParam) };
 
@@ -1368,49 +1363,55 @@ internal unsafe class Win32Window : Window
             }
         }
 
-        // Diagonal are wider than the frame
-        int diagonalWidth = frameSize * 2 + GetSystemMetrics(SM.SM_CXBORDER);
-
-        // Top
-        if (ptMouse.y >= rcWindow.top)
+        // The following provides a default handling for the borders
+        // Unless we are maximized or fullscreen
+        bool isMaximized = IsMaximized(HWnd);
+        if (!_isFullscreen && !isMaximized)
         {
-            bool isTopBorder = ptMouse.y < rcWindow.top + frameSize;
+            // Diagonal are wider than the frame
+            int diagonalWidth = frameSize * 2 + GetSystemMetrics(SM.SM_CXBORDER);
 
-            if (isTopBorder)
+            // Top
+            if (ptMouse.y >= rcWindow.top)
+            {
+                bool isTopBorder = ptMouse.y < rcWindow.top + frameSize;
+
+                if (isTopBorder)
+                {
+                    if (ptMouse.x < rcWindow.left + diagonalWidth)
+                    {
+                        return HTTOPLEFT;
+                    }
+
+                    if (ptMouse.x > rcWindow.right - diagonalWidth)
+                    {
+                        return HTTOPRIGHT;
+                    }
+
+                    return HTTOP;
+                }
+            }
+
+            // Bottom
+            if (ptMouse.y >= rcWindow.bottom - frameSize)
             {
                 if (ptMouse.x < rcWindow.left + diagonalWidth)
                 {
-                    return HTTOPLEFT;
+                    return HTBOTTOMLEFT;
                 }
 
-                if (ptMouse.x > rcWindow.right - diagonalWidth)
-                {
-                    return HTTOPRIGHT;
-                }
-
-                return HTTOP;
+                return ptMouse.x > rcWindow.right - diagonalWidth ? HTBOTTOMRIGHT : HTBOTTOM;
             }
-        }
 
-        // Bottom
-        if (ptMouse.y >= rcWindow.bottom - frameSize)
-        {
-            if (ptMouse.x < rcWindow.left + diagonalWidth)
+            // Left or Right
+            if (ptMouse.x < rcWindow.left + frameSize)
             {
-                return HTBOTTOMLEFT;
+                return HTLEFT;
             }
-
-            return ptMouse.x > rcWindow.right - diagonalWidth ? HTBOTTOMRIGHT : HTBOTTOM;
-        }
-
-        // Left or Right
-        if (ptMouse.x < rcWindow.left + frameSize)
-        {
-            return HTLEFT;
-        }
-        else if (ptMouse.x > rcWindow.right - frameSize)
-        {
-            return HTRIGHT;
+            else if (ptMouse.x > rcWindow.right - frameSize)
+            {
+                return HTRIGHT;
+            }
         }
 
         return HTCLIENT;
