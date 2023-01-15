@@ -6,8 +6,15 @@ using System;
 
 namespace NWindows;
 
-public record DataFormat(string Mime)
+public abstract record DataFormat
 {
+    internal DataFormat(string mime)
+    {
+        Mime = mime;
+    }
+
+    public string Mime { get; }
+
     public bool IsSupported { get; internal init; }
 
     public void VerifySupported()

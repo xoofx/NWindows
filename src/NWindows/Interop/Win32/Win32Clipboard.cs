@@ -202,7 +202,13 @@ internal sealed unsafe class Win32Clipboard : ClipboardImpl
         {
             if (_mapMimeToFormat.ContainsKey(mime)) throw new ArgumentException($"The mime `{mimeName}` has been already registered");
 
-            var format = RegisterClipboardFormat(mimeName);
+            // In case we request a native format that we don't support out of the box
+            // we will use the native format, otherwise we register it.
+            if (!NativeFormats.TryGetNativeFormatFromMime(mimeName, out var format))
+            {
+                format = (uint)RegisterClipboardFormat(mimeName);
+            }
+
             _mapMimeToFormat[mime] = format;
             _mapFormatToMime[format] = mime;
             _mapMimeToSerializerProxy[mime] = new DataFormatSerializerProxy<T>(serializer);
@@ -578,38 +584,6 @@ internal sealed unsafe class Win32Clipboard : ClipboardImpl
             return dataFormat;
         }
 
-        switch (uFormat)
-        {
-            case CF_NULL: return NativeFormats.CF_NULL;
-            case CF_TEXT: return NativeFormats.CF_TEXT;
-            case CF_BITMAP: return NativeFormats.CF_BITMAP;
-            case CF_METAFILEPICT: return NativeFormats.CF_METAFILEPICT;
-            case CF_SYLK: return NativeFormats.CF_SYLK;
-            case CF_DIF: return NativeFormats.CF_DIF;
-            case CF_TIFF: return NativeFormats.CF_TIFF;
-            case CF_OEMTEXT: return NativeFormats.CF_OEMTEXT;
-            case CF_DIB: return NativeFormats.CF_DIB;
-            case CF_PALETTE: return NativeFormats.CF_PALETTE;
-            case CF_PENDATA: return NativeFormats.CF_PENDATA;
-            case CF_RIFF: return NativeFormats.CF_RIFF;
-            case CF_WAVE: return NativeFormats.CF_WAVE;
-            case CF_UNICODETEXT: return NativeFormats.CF_UNICODETEXT;
-            case CF_ENHMETAFILE: return NativeFormats.CF_ENHMETAFILE;
-            case CF_HDROP: return NativeFormats.CF_HDROP;
-            case CF_LOCALE: return NativeFormats.CF_LOCALE;
-            case CF_DIBV5: return NativeFormats.CF_DIBV5;
-            case CF_MAX: return NativeFormats.CF_MAX;
-            case CF_OWNERDISPLAY: return NativeFormats.CF_OWNERDISPLAY;
-            case CF_DSPTEXT: return NativeFormats.CF_DSPTEXT;
-            case CF_DSPBITMAP: return NativeFormats.CF_DSPBITMAP;
-            case CF_DSPMETAFILEPICT: return NativeFormats.CF_DSPMETAFILEPICT;
-            case CF_DSPENHMETAFILE: return NativeFormats.CF_DSPENHMETAFILE;
-            case CF_PRIVATEFIRST: return NativeFormats.CF_PRIVATEFIRST;
-            case CF_PRIVATELAST: return NativeFormats.CF_PRIVATELAST;
-            case CF_GDIOBJFIRST: return NativeFormats.CF_GDIOBJFIRST;
-            case CF_GDIOBJLAST: return NativeFormats.CF_GDIOBJLAST;
-        }
-
         lock (_lock)
         {
             if (_mapFormatToMime.TryGetValue(uFormat, out var dataFormat2))
@@ -621,7 +595,7 @@ internal sealed unsafe class Win32Clipboard : ClipboardImpl
         const int maxCharCount = 256;
         char* formatName = stackalloc char[maxCharCount];
         var cc = GetClipboardFormatNameW(uFormat, (ushort*)formatName, maxCharCount);
-        return cc >= 0 ? new($"unknown/{new string(formatName, 0, cc)}") : null;
+        return cc > 0 ? new UnknownDataFormat($"unknown/{new string(formatName, 0, cc)}") : null;
     }
     
     private static void MapClipboardFormat(string nativeName, DataFormat dataFormat)
@@ -641,35 +615,115 @@ internal sealed unsafe class Win32Clipboard : ClipboardImpl
 
     private static class NativeFormats
     {
-        public static readonly DataFormat CF_NULL = new($"native/{nameof(CF_NULL)}");
-        public static readonly DataFormat CF_TEXT = new($"native/${CF_TEXT}");
-        public static readonly DataFormat CF_BITMAP = new($"native/{nameof(CF_BITMAP)}");
-        public static readonly DataFormat CF_METAFILEPICT = new($"native/{nameof(CF_METAFILEPICT)}");
-        public static readonly DataFormat CF_SYLK = new($"native/{nameof(CF_SYLK)}");
-        public static readonly DataFormat CF_DIF = new($"native/{nameof(CF_DIF)}");
-        public static readonly DataFormat CF_TIFF = new($"native/{nameof(CF_TIFF)}");
-        public static readonly DataFormat CF_OEMTEXT = new($"native/{nameof(CF_OEMTEXT)}");
-        public static readonly DataFormat CF_DIB = new($"native/{nameof(CF_DIB)}");
-        public static readonly DataFormat CF_PALETTE = new($"native/{nameof(CF_PALETTE)}");
-        public static readonly DataFormat CF_PENDATA = new($"native/{nameof(CF_PENDATA)}");
-        public static readonly DataFormat CF_RIFF = new($"native/{nameof(CF_RIFF)}");
-        public static readonly DataFormat CF_WAVE = new($"native/{nameof(CF_WAVE)}");
-        public static readonly DataFormat CF_UNICODETEXT = new($"native/{nameof(CF_UNICODETEXT)}");
-        public static readonly DataFormat CF_ENHMETAFILE = new($"native/{nameof(CF_ENHMETAFILE)}");
-        public static readonly DataFormat CF_HDROP = new($"native/{nameof(CF_HDROP)}");
-        public static readonly DataFormat CF_LOCALE = new($"native/{nameof(CF_LOCALE)}");
-        public static readonly DataFormat CF_DIBV5 = new($"native/{nameof(CF_DIBV5)}");
-        public static readonly DataFormat CF_MAX = new($"native/{nameof(CF_MAX)}");
-        public static readonly DataFormat CF_OWNERDISPLAY = new($"native/{nameof(CF_OWNERDISPLAY)}");
-        public static readonly DataFormat CF_DSPTEXT = new($"native/{nameof(CF_DSPTEXT)}");
-        public static readonly DataFormat CF_DSPBITMAP = new($"native/{nameof(CF_DSPBITMAP)}");
-        public static readonly DataFormat CF_DSPMETAFILEPICT = new($"native/{nameof(CF_DSPMETAFILEPICT)}");
-        public static readonly DataFormat CF_DSPENHMETAFILE = new($"native/{nameof(CF_DSPENHMETAFILE)}");
-        public static readonly DataFormat CF_PRIVATEFIRST = new($"native/{nameof(CF_PRIVATEFIRST)}");
-        public static readonly DataFormat CF_PRIVATELAST = new($"native/{nameof(CF_PRIVATELAST)}");
-        public static readonly DataFormat CF_GDIOBJFIRST = new($"native/{nameof(CF_GDIOBJFIRST)}");
-        public static readonly DataFormat CF_GDIOBJLAST = new($"native/{nameof(CF_GDIOBJLAST)}");
+        private static readonly Dictionary<string, uint> MapNameToNativeFormat = new();
+
+        public static readonly NativeDataFormat CF_NULL = new($"native/{nameof(CF_NULL)}");
+        public static readonly NativeDataFormat CF_TEXT = new($"native/${CF_TEXT}");
+        public static readonly NativeDataFormat CF_BITMAP = new($"native/{nameof(CF_BITMAP)}");
+        public static readonly NativeDataFormat CF_METAFILEPICT = new($"native/{nameof(CF_METAFILEPICT)}");
+        public static readonly NativeDataFormat CF_SYLK = new($"native/{nameof(CF_SYLK)}");
+        public static readonly NativeDataFormat CF_DIF = new($"native/{nameof(CF_DIF)}");
+        public static readonly NativeDataFormat CF_TIFF = new($"native/{nameof(CF_TIFF)}");
+        public static readonly NativeDataFormat CF_OEMTEXT = new($"native/{nameof(CF_OEMTEXT)}");
+        public static readonly NativeDataFormat CF_DIB = new($"native/{nameof(CF_DIB)}");
+        public static readonly NativeDataFormat CF_PALETTE = new($"native/{nameof(CF_PALETTE)}");
+        public static readonly NativeDataFormat CF_PENDATA = new($"native/{nameof(CF_PENDATA)}");
+        public static readonly NativeDataFormat CF_RIFF = new($"native/{nameof(CF_RIFF)}");
+        public static readonly NativeDataFormat CF_WAVE = new($"native/{nameof(CF_WAVE)}");
+        public static readonly NativeDataFormat CF_UNICODETEXT = new($"native/{nameof(CF_UNICODETEXT)}");
+        public static readonly NativeDataFormat CF_ENHMETAFILE = new($"native/{nameof(CF_ENHMETAFILE)}");
+        public static readonly NativeDataFormat CF_HDROP = new($"native/{nameof(CF_HDROP)}");
+        public static readonly NativeDataFormat CF_LOCALE = new($"native/{nameof(CF_LOCALE)}");
+        public static readonly NativeDataFormat CF_DIBV5 = new($"native/{nameof(CF_DIBV5)}");
+        public static readonly NativeDataFormat CF_MAX = new($"native/{nameof(CF_MAX)}");
+        public static readonly NativeDataFormat CF_OWNERDISPLAY = new($"native/{nameof(CF_OWNERDISPLAY)}");
+        public static readonly NativeDataFormat CF_DSPTEXT = new($"native/{nameof(CF_DSPTEXT)}");
+        public static readonly NativeDataFormat CF_DSPBITMAP = new($"native/{nameof(CF_DSPBITMAP)}");
+        public static readonly NativeDataFormat CF_DSPMETAFILEPICT = new($"native/{nameof(CF_DSPMETAFILEPICT)}");
+        public static readonly NativeDataFormat CF_DSPENHMETAFILE = new($"native/{nameof(CF_DSPENHMETAFILE)}");
+        public static readonly NativeDataFormat CF_PRIVATEFIRST = new($"native/{nameof(CF_PRIVATEFIRST)}");
+        public static readonly NativeDataFormat CF_PRIVATELAST = new($"native/{nameof(CF_PRIVATELAST)}");
+        public static readonly NativeDataFormat CF_GDIOBJFIRST = new($"native/{nameof(CF_GDIOBJFIRST)}");
+        public static readonly NativeDataFormat CF_GDIOBJLAST = new($"native/{nameof(CF_GDIOBJLAST)}");
+
+        static NativeFormats()
+        {
+            MapNameToNativeFormat[CF_NULL.Mime] = CF.CF_NULL;
+            MapNameToNativeFormat[CF_TEXT.Mime] = CF.CF_TEXT;
+            MapNameToNativeFormat[CF_BITMAP.Mime] = CF.CF_BITMAP;
+            MapNameToNativeFormat[CF_METAFILEPICT.Mime] = CF.CF_METAFILEPICT;
+            MapNameToNativeFormat[CF_SYLK.Mime] = CF.CF_SYLK;
+            MapNameToNativeFormat[CF_DIF.Mime] = CF.CF_DIF;
+            MapNameToNativeFormat[CF_TIFF.Mime] = CF.CF_TIFF;
+            MapNameToNativeFormat[CF_OEMTEXT.Mime] = CF.CF_OEMTEXT;
+            MapNameToNativeFormat[CF_DIB.Mime] = CF.CF_DIB;
+            MapNameToNativeFormat[CF_PALETTE.Mime] = CF.CF_PALETTE;
+            MapNameToNativeFormat[CF_PENDATA.Mime] = CF.CF_PENDATA;
+            MapNameToNativeFormat[CF_RIFF.Mime] = CF.CF_RIFF;
+            MapNameToNativeFormat[CF_WAVE.Mime] = CF.CF_WAVE;
+            MapNameToNativeFormat[CF_UNICODETEXT.Mime] = CF.CF_UNICODETEXT;
+            MapNameToNativeFormat[CF_ENHMETAFILE.Mime] = CF.CF_ENHMETAFILE;
+            MapNameToNativeFormat[CF_HDROP.Mime] = CF.CF_HDROP;
+            MapNameToNativeFormat[CF_LOCALE.Mime] = CF.CF_LOCALE;
+            MapNameToNativeFormat[CF_DIBV5.Mime] = CF.CF_DIBV5;
+            MapNameToNativeFormat[CF_MAX.Mime] = CF.CF_MAX;
+            MapNameToNativeFormat[CF_OWNERDISPLAY.Mime] = CF.CF_OWNERDISPLAY;
+            MapNameToNativeFormat[CF_DSPTEXT.Mime] = CF.CF_DSPTEXT;
+            MapNameToNativeFormat[CF_DSPBITMAP.Mime] = CF.CF_DSPBITMAP;
+            MapNameToNativeFormat[CF_DSPMETAFILEPICT.Mime] = CF.CF_DSPMETAFILEPICT;
+            MapNameToNativeFormat[CF_DSPENHMETAFILE.Mime] = CF.CF_DSPENHMETAFILE;
+            MapNameToNativeFormat[CF_PRIVATEFIRST.Mime] = CF.CF_PRIVATEFIRST;
+            MapNameToNativeFormat[CF_PRIVATELAST.Mime] = CF.CF_PRIVATELAST;
+            MapNameToNativeFormat[CF_GDIOBJFIRST.Mime] = CF.CF_GDIOBJFIRST;
+            MapNameToNativeFormat[CF_GDIOBJLAST.Mime] = CF.CF_GDIOBJLAST;
+        }
+
+        public static bool TryGetNativeFormatFromMime(string mime, out uint format)
+        {
+            return MapNameToNativeFormat.TryGetValue(mime, out format);
+        }
+        
+        public static NativeDataFormat? GetNativeDataFormat(uint uFormat)
+        {
+            switch (uFormat)
+            {
+                case CF.CF_NULL: return CF_NULL;
+                case CF.CF_TEXT: return CF_TEXT;
+                case CF.CF_BITMAP: return CF_BITMAP;
+                case CF.CF_METAFILEPICT: return CF_METAFILEPICT;
+                case CF.CF_SYLK: return CF_SYLK;
+                case CF.CF_DIF: return CF_DIF;
+                case CF.CF_TIFF: return CF_TIFF;
+                case CF.CF_OEMTEXT: return CF_OEMTEXT;
+                case CF.CF_DIB: return CF_DIB;
+                case CF.CF_PALETTE: return CF_PALETTE;
+                case CF.CF_PENDATA: return CF_PENDATA;
+                case CF.CF_RIFF: return CF_RIFF;
+                case CF.CF_WAVE: return CF_WAVE;
+                case CF.CF_UNICODETEXT: return CF_UNICODETEXT;
+                case CF.CF_ENHMETAFILE: return CF_ENHMETAFILE;
+                case CF.CF_HDROP: return CF_HDROP;
+                case CF.CF_LOCALE: return CF_LOCALE;
+                case CF.CF_DIBV5: return CF_DIBV5;
+                case CF.CF_MAX: return CF_MAX;
+                case CF.CF_OWNERDISPLAY: return CF_OWNERDISPLAY;
+                case CF.CF_DSPTEXT: return CF_DSPTEXT;
+                case CF.CF_DSPBITMAP: return CF_DSPBITMAP;
+                case CF.CF_DSPMETAFILEPICT: return CF_DSPMETAFILEPICT;
+                case CF.CF_DSPENHMETAFILE: return CF_DSPENHMETAFILE;
+                case CF.CF_PRIVATEFIRST: return CF_PRIVATEFIRST;
+                case CF.CF_PRIVATELAST: return CF_PRIVATELAST;
+                case CF.CF_GDIOBJFIRST: return CF_GDIOBJFIRST;
+                case CF.CF_GDIOBJLAST: return CF_GDIOBJLAST;
+            }
+
+            return null;
+        }
     }
+
+    private record NativeDataFormat(string Mime) : DataFormat(Mime);
+
+    private record UnknownDataFormat(string Mime) : DataFormat(Mime);
 
     private abstract class DataFormatSerializerProxy
     {
