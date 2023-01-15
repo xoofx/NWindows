@@ -57,6 +57,10 @@ public readonly struct Dpi : IEquatable<Dpi>
 
     public Size LogicalToPixel(SizeF point) => new((int)(point.Width * ScaleLogicalToPixel.X), (int)(point.Height * ScaleLogicalToPixel.Y));
 
+    public Rectangle LogicalToPixel(RectangleF bounds) => new Rectangle(LogicalToPixel(bounds.Location), LogicalToPixel(bounds.Size));
+
+    public RectangleF PixelToLogical(Rectangle bounds) => new RectangleF(PixelToLogical(bounds.Location), PixelToLogical(bounds.Size));
+
     public bool Equals(Dpi other)
     {
         return X == other.X && Y == other.Y;

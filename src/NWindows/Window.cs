@@ -55,6 +55,8 @@ public abstract class Window : DispatcherObject, INativeWindow
     public abstract string Title { get; set; }
 
     public abstract SizeF Size { get; set; }
+
+    public abstract SizeF ClientSize { get; set; }
     
     public abstract Point Position { get; set; }
 

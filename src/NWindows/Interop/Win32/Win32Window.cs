@@ -244,6 +244,43 @@ internal unsafe class Win32Window : Window
         }
     }
 
+    public override SizeF ClientSize
+    {
+        get
+        {
+            VerifyAccessAndNotDestroyed();
+
+            RECT rect;
+            if (GetClientRect(HWnd, &rect))
+            {
+                return _dpi.PixelToLogical(rect.ToRectangle().Size);
+            }
+
+            return default;
+        }
+        set
+        {
+            VerifyAccessAndNotDestroyed();
+            VerifyNotFullScreenAndNotMaximized();
+
+            var newSize = _dpi.LogicalToPixel(value);
+            var style = GetWindowStyle(HWnd);
+            var exStyle = GetWindowExStyle(HWnd);
+            RECT rect;
+            rect.left = 0;
+            rect.top = 0;
+            rect.right = newSize.Width;
+            rect.bottom = newSize.Height;
+
+            // We take into account DPI just above, so we are not using AdjustWindowsRectExForDPI.
+            if (AdjustWindowRectEx(&rect, style, false, exStyle))
+            {
+                // This will notify a change of Size, not client size
+                SetWindowPos(HWnd, HWND.NULL, 0, 0, rect.right - rect.left, rect.bottom - rect.top, SWP.SWP_NOMOVE | SWP.SWP_NOACTIVATE | SWP.SWP_NOZORDER);
+            }
+        }
+    }
+
     public override Point Position
     {
         get
@@ -1373,7 +1410,7 @@ internal unsafe class Win32Window : Window
     {
         var dpi = _dpi;
 
-        var position = new Point(rect->left, rect->right);
+        var position = new Point(rect->left, rect->top);
         var size = new Size(rect->right - rect->left, rect->bottom - rect->top);
         rectF = new RectangleF(dpi.PixelToLogical(position), dpi.PixelToLogical(size));
     }

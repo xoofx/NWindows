@@ -87,6 +87,11 @@ static void EventsOnAll(Window window, WindowEvent evt)
         {
             Mouse.SetCursor(Cursor.Arrow);
         }
+
+        if ((mouseEvt.Pressed & MouseButtonFlags.Right) != 0)
+        {
+            Console.WriteLine($"Client (Dpi): {window.ClientSize} Client: {window.Dpi.LogicalToPixel(window.ClientSize)} Window (Dpi): {window.Size} Window: {window.Dpi.LogicalToPixel(window.Size)}");
+        }
     }
     else if (evt is FrameEvent frameEvent)
     {
@@ -120,6 +125,10 @@ static void EventsOnAll(Window window, WindowEvent evt)
             else if (keyboardEvent.Key == Key.N)
             {
                 window.State = WindowState.Normal;
+            }
+            else if (keyboardEvent.Key == Key.P)
+            {
+                window.ClientSize = new SizeF(640, 320);
             }
         }
     }
