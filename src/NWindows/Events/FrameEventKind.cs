@@ -28,8 +28,6 @@ public enum FrameEventKind
     ModalChanged,
     Enabled,
     Disabled,
-    Close,
-    TakeFocus,
     TitleChanged,
     MaximizeableChanged,
     MinimizeableChanged,

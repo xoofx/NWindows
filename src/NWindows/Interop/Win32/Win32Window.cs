@@ -143,7 +143,7 @@ internal unsafe class Win32Window : Window
             VerifyNotChild();
             VerifyNotFullScreen();
 
-            if (value != _enable)
+            if (value != _hasDecorations)
             {
                 UpdateDecorations(value);
             }
@@ -868,6 +868,9 @@ internal unsafe class Win32Window : Window
             bounds.Width,
             bounds.Height,
             SWP.SWP_NOZORDER | SWP.SWP_NOACTIVATE);
+
+        _position = bounds.Location;
+        _size = _dpi.PixelToLogical(bounds.Size);
     }
 
     private void HandleChar(WPARAM wParam, LPARAM lParam)

@@ -8,11 +8,11 @@ namespace NWindows.Threading;
 
 public abstract class DispatcherObject
 {
-    internal DispatcherObject() : this(Dispatcher.Current)
+    protected DispatcherObject() : this(Dispatcher.Current)
     {
     }
 
-    internal DispatcherObject(Dispatcher dispatcher)
+    protected DispatcherObject(Dispatcher dispatcher)
     {
         Dispatcher = dispatcher;
     }
