@@ -7,7 +7,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NWindows", "NWindows\NWindo
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NWindows.Tests", "NWindows.Tests\NWindows.Tests.csproj", "{05042D72-14C3-461B-B84D-71E58608D816}"
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{BBC4B16D-083F-47E6-BFAE-9064E600F230}"
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "general", "general", "{BBC4B16D-083F-47E6-BFAE-9064E600F230}"
 	ProjectSection(SolutionItems) = preProject
 		..\.editorconfig = ..\.editorconfig
 		..\.gitattributes = ..\.gitattributes
@@ -19,7 +19,15 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 		..\readme.md = ..\readme.md
 	EndProjectSection
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HelloWindow", "HelloWindow\HelloWindow.csproj", "{27710977-5C0E-46E5-BCE7-99F34EF25B02}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HelloWorld", "..\samples\HelloWorld\HelloWorld.csproj", "{6CEED6F2-455A-4DA1-9A3A-ACA7C7EEFA14}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "samples", "samples", "{2D7486E5-BC28-4C8B-84DD-96BE7DC4009D}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "lib", "lib", "{88FE95AE-766C-44F2-98AB-1D88CBA47465}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MultiWindow", "..\samples\MultiWindow\MultiWindow.csproj", "{1760BD4E-5C7D-4203-937A-29816AC39007}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HelloDirect3D", "..\samples\HelloDirect3D\HelloDirect3D.csproj", "{21505F4E-68D7-4403-81C0-A6A226DC16B0}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -35,13 +43,28 @@ Global
 		{05042D72-14C3-461B-B84D-71E58608D816}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{05042D72-14C3-461B-B84D-71E58608D816}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{05042D72-14C3-461B-B84D-71E58608D816}.Release|Any CPU.Build.0 = Release|Any CPU
-		{27710977-5C0E-46E5-BCE7-99F34EF25B02}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{27710977-5C0E-46E5-BCE7-99F34EF25B02}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{27710977-5C0E-46E5-BCE7-99F34EF25B02}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{27710977-5C0E-46E5-BCE7-99F34EF25B02}.Release|Any CPU.Build.0 = Release|Any CPU
+		{6CEED6F2-455A-4DA1-9A3A-ACA7C7EEFA14}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6CEED6F2-455A-4DA1-9A3A-ACA7C7EEFA14}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6CEED6F2-455A-4DA1-9A3A-ACA7C7EEFA14}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6CEED6F2-455A-4DA1-9A3A-ACA7C7EEFA14}.Release|Any CPU.Build.0 = Release|Any CPU
+		{1760BD4E-5C7D-4203-937A-29816AC39007}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1760BD4E-5C7D-4203-937A-29816AC39007}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1760BD4E-5C7D-4203-937A-29816AC39007}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1760BD4E-5C7D-4203-937A-29816AC39007}.Release|Any CPU.Build.0 = Release|Any CPU
+		{21505F4E-68D7-4403-81C0-A6A226DC16B0}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{21505F4E-68D7-4403-81C0-A6A226DC16B0}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{21505F4E-68D7-4403-81C0-A6A226DC16B0}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{21505F4E-68D7-4403-81C0-A6A226DC16B0}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{7988FA3A-41BB-40D8-93E7-D8AB66BD73B8} = {88FE95AE-766C-44F2-98AB-1D88CBA47465}
+		{05042D72-14C3-461B-B84D-71E58608D816} = {88FE95AE-766C-44F2-98AB-1D88CBA47465}
+		{6CEED6F2-455A-4DA1-9A3A-ACA7C7EEFA14} = {2D7486E5-BC28-4C8B-84DD-96BE7DC4009D}
+		{1760BD4E-5C7D-4203-937A-29816AC39007} = {2D7486E5-BC28-4C8B-84DD-96BE7DC4009D}
+		{21505F4E-68D7-4403-81C0-A6A226DC16B0} = {2D7486E5-BC28-4C8B-84DD-96BE7DC4009D}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {95E8F3B3-49E8-400E-97A1-38D8B946DFCA}
