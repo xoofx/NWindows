@@ -264,19 +264,32 @@ internal unsafe class Win32Window : Window
             VerifyNotFullScreenAndNotMaximized();
 
             var newSize = _dpi.LogicalToPixel(value);
-            var style = GetWindowStyle(HWnd);
-            var exStyle = GetWindowExStyle(HWnd);
             RECT rect;
-            rect.left = 0;
-            rect.top = 0;
-            rect.right = newSize.Width;
-            rect.bottom = newSize.Height;
 
-            // We take into account DPI just above, so we are not using AdjustWindowsRectExForDPI.
-            if (AdjustWindowRectEx(&rect, style, false, exStyle))
+            if (!_hasDecorations)
             {
-                // This will notify a change of Size, not client size
-                SetWindowPos(HWnd, HWND.NULL, 0, 0, rect.right - rect.left, rect.bottom - rect.top, SWP.SWP_NOMOVE | SWP.SWP_NOACTIVATE | SWP.SWP_NOZORDER);
+                if (GetWindowRect(HWnd, &rect))
+                {
+                    // This will notify a change of Size, not client size
+                    SetWindowPos(HWnd, HWND.NULL, 0, 0, newSize.Width, newSize.Height, SWP.SWP_NOMOVE | SWP.SWP_NOACTIVATE | SWP.SWP_NOZORDER);
+                }
+            }
+            else
+            {
+                rect.left = 0;
+                rect.top = 0;
+                rect.right = newSize.Width;
+                rect.bottom = newSize.Height;
+
+                var style = GetWindowStyle(HWnd);
+                var exStyle = GetWindowExStyle(HWnd);
+
+                // We take into account DPI just above, so we are not using AdjustWindowsRectExForDPI.
+                if (AdjustWindowRectEx(&rect, style, false, exStyle))
+                {
+                    // This will notify a change of Size, not client size
+                    SetWindowPos(HWnd, HWND.NULL, 0, 0, rect.right - rect.left, rect.bottom - rect.top, SWP.SWP_NOMOVE | SWP.SWP_NOACTIVATE | SWP.SWP_NOZORDER);
+                }
             }
         }
     }

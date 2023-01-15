@@ -49,7 +49,8 @@ var window = Window.Create(new ()
     Title = "Hello World",
     BackgroundColor = Color.DarkSlateGray,
     StartPosition = WindowStartPosition.CenterScreen,
-    DragDrop = true
+    DragDrop = true,
+    Decorations = false,
 });
 
 //var windowChild = Window.Create(new()
