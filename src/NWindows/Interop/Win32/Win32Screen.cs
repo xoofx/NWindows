@@ -81,30 +81,21 @@ internal sealed class Win32Screen : Screen
         }
     }
 
-    public override ref readonly ScreenMode CurrentDisplayMode
+    public override int RefreshRate
     {
         get
         {
             VerifyAccess();
-            return ref InternalData.CurrentDisplayMode;
+            return InternalData.RefreshRate;
         }
     }
 
-    public override ref readonly ScreenMode SystemDisplayMode
+    public override DisplayOrientation DisplayOrientation
     {
         get
         {
             VerifyAccess();
-            return ref InternalData.SystemDisplayMode;
-        }
-    }
-
-    public override ReadOnlySpan<ScreenMode> DisplayModes
-    {
-        get
-        {
-            VerifyAccess();
-            return InternalData.ScreenModes;
+            return InternalData.DisplayOrientation;
         }
     }
 }

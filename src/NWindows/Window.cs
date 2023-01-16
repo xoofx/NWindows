@@ -56,6 +56,8 @@ public abstract class Window : DispatcherObject, INativeWindow
 
     public abstract SizeF Size { get; set; }
 
+    public Size SizeInPixels => Dpi.LogicalToPixel(Size);
+
     public abstract SizeF ClientSize { get; set; }
     
     public abstract Point Position { get; set; }
@@ -107,7 +109,7 @@ public abstract class Window : DispatcherObject, INativeWindow
     public abstract void CenterToScreen();
 
     public abstract void SetIcon(Icon icon);
-
+    
     public void ShowDialog()
     {
         VerifyAccess();

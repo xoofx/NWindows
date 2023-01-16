@@ -52,14 +52,12 @@ public abstract class Screen : DispatcherObject
     
     public abstract ref readonly Dpi Dpi { get; }
 
-    public abstract ref readonly ScreenMode CurrentDisplayMode { get; }
-    
-    public abstract ref readonly ScreenMode SystemDisplayMode { get; }
+    public abstract int RefreshRate { get; }
 
-    public abstract ReadOnlySpan<ScreenMode> DisplayModes { get; }
+    public abstract DisplayOrientation DisplayOrientation { get; }
 
     public override string ToString()
     {
-        return $"Screen {nameof(Name)}: {Name}, {nameof(IsPrimary)}: {IsPrimary}, {nameof(Position)}: {Position}, {nameof(SizeInPixels)}: {SizeInPixels}, {nameof(Size)}: {Size}, {nameof(Dpi)}: {Dpi}, {nameof(DisplayModes)}: {DisplayModes.Length}";
+        return $"Screen {nameof(Name)}: {Name}, {nameof(IsPrimary)}: {IsPrimary}, {nameof(Position)}: {Position}, {nameof(SizeInPixels)}: {SizeInPixels}, {nameof(Size)}: {Size}, {nameof(Dpi)}: {Dpi}, {nameof(RefreshRate)}: {RefreshRate}, {nameof(DisplayOrientation)}: {DisplayOrientation}";
     }
 }

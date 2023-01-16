@@ -60,6 +60,7 @@ internal unsafe class Win32Window : Window
     private bool _showInTaskBar;
     private bool _initialShowInTaskBar;
     private Dpi _dpi;
+    private DpiMode _dpiMode;
     private readonly Win32DropTarget _dropTarget;
 
     private HICON _windowIcon;
@@ -71,7 +72,6 @@ internal unsafe class Win32Window : Window
     private bool _hasMinimizeableBeforeFullScreen;
     private bool _hasResizeableBeforeFullScreen;
     private Dpi _dpiBeforeFullScreen;
-    private DpiMode _dpiMode;
 
     public Win32Window(WindowCreateOptions options) : base(options)
     {
@@ -307,10 +307,6 @@ internal unsafe class Win32Window : Window
         {
             VerifyAccessAndNotDestroyed();
             VerifyNotChild();
-            VerifyNotExclusiveFullScreen();
-
-            // TODO: For fullscreen, we might be able to move the position to snap to screens
-            // but if they have a different resolution, we would have to change their size as well.
 
             if (value != _position)
             {
@@ -835,11 +831,7 @@ internal unsafe class Win32Window : Window
                 {
                     var dpiX = HIWORD(wParam);
                     UpdateDpi(new Dpi(dpiX, dpiX));
-
-                    if (!_isFullscreen)
-                    {
-                        SetWindowBounds((*(RECT*)lParam).ToRectangle());
-                    }
+                    SetWindowBounds((*(RECT*)lParam).ToRectangle());
                 }
                 result = 0;
                 break;
@@ -852,7 +844,7 @@ internal unsafe class Win32Window : Window
             case WM_ACTIVATEAPP:
                 _windowIsActive = ((BOOL)wParam);
                 // Mark the dispatcher to not process Windows key if we have an active window in fullscreen
-                Dispatcher.HasActiveExclusiveFullScreenWindow = _windowIsActive && _state.Kind == WindowStateKind.ExclusiveFullScreen;
+                //Dispatcher.HasActiveExclusiveFullScreenWindow = _windowIsActive && _state.Kind == WindowState.ExclusiveFullScreen;
                 break;
         }
 
@@ -1727,11 +1719,7 @@ internal unsafe class Win32Window : Window
         {
             var defaultDpiX = Win32Helper.GetDpiForWindowSafe(HWnd);
             var defaultDpi = new Dpi(defaultDpiX, defaultDpiX);
-            if (State.Kind != WindowStateKind.ExclusiveFullScreen)
-            {
-                // TODO: case of the Exclusive fullscreen in desktop resolution?
-                UpdateDpi(defaultDpi);
-            }
+            UpdateDpi(defaultDpi);
         }
 
         if (_dpiMode != dpiMode)
@@ -1898,52 +1886,45 @@ internal unsafe class Win32Window : Window
 
     private void UpdateWindowState(WindowState state)
     {
-        // If we arrive here, It is necessarily:
-        // - previous: false, next: true
-        // - previous: true, next: false
-        bool previousFullScreen = _state.IsFullScreen;
-        bool nextFullScreen = state.IsFullScreen;
-        
-        // Non fullscreen mode cases
-        switch (state.Kind)
+        switch (state)
         {
-            case WindowStateKind.Normal:
-                if (previousFullScreen)
+            case WindowState.Normal:
+                if (_isFullscreen)
                 {
                     RestoreWindowBeforeFullScreen();
                 }
                 ShowWindow(HWnd, SW.SW_NORMAL);
                 break;
-            case WindowStateKind.Minimized:
-                if (previousFullScreen)
+            case WindowState.Minimized:
+                if (_isFullscreen)
                 {
                     RestoreWindowBeforeFullScreen();
                 }
                 ShowWindow(HWnd, SW.SW_MINIMIZE);
                 break;
-            case WindowStateKind.Maximized:
+            case WindowState.Maximized:
                 if (_maximumSize.IsEmpty)
                 {
-                    if (previousFullScreen)
+                    if (_isFullscreen)
                     {
                         RestoreWindowBeforeFullScreen();
                     }
                     ShowWindow(HWnd, SW.SW_MAXIMIZE);
                 }
                 break;
-            case WindowStateKind.FullScreen:
-            case WindowStateKind.ExclusiveFullScreen:
-                // Try to switch to fullscreen, we could be not successful so
-                // in that case we have to return without changing the state
-                if (!SwitchToFullScreen(state))
+            case WindowState.FullScreen:
+                if (!_isFullscreen)
                 {
-                    return;
+                    SwitchToFullScreen();
                 }
                 break;
         }
 
-        _state = state;
-        OnFrameEvent(FrameEventKind.StateChanged);
+        if (_state != state)
+        {
+            _state = state;
+            OnFrameEvent(FrameEventKind.StateChanged);
+        }
     }
 
     private void UpdateOpacity(float value)
@@ -2103,25 +2084,23 @@ internal unsafe class Win32Window : Window
         OnFrameEvent(FrameEventKind.ShowInTaskBarChanged);
     }
 
-    private bool SwitchToFullScreen(WindowState state)
+    private void SwitchToFullScreen()
     {
+        if (_state == WindowState.FullScreen) return;
+
         var screen = GetScreenOrPrimary();
-        if (screen == null) return false;
+        if (screen == null) return;
 
         // If we are switching to fullscreen (exclusive or not), save the size/decorations of the window 
-        if (!_isFullscreen)
-        {
-            RECT windowRect;
-            GetWindowRect(HWnd, &windowRect);
-            _windowRectBeforeFullScreen = windowRect.ToRectangle();
-            _hasDecorationsBeforeFullScreen = _hasDecorations;
-            _hasMinimizeableBeforeFullScreen = _minimizeable;
-            _hasMaximizeableBeforeFullScreen = _maximizeable;
-            _hasResizeableBeforeFullScreen = _resizeable;
-            _dpiBeforeFullScreen = _dpi;
-
-            _isFullscreen = true;
-        }
+        RECT windowRect;
+        GetWindowRect(HWnd, &windowRect);
+        _windowRectBeforeFullScreen = windowRect.ToRectangle();
+        _hasDecorationsBeforeFullScreen = _hasDecorations;
+        _hasMinimizeableBeforeFullScreen = _minimizeable;
+        _hasMaximizeableBeforeFullScreen = _maximizeable;
+        _hasResizeableBeforeFullScreen = _resizeable;
+        _dpiBeforeFullScreen = _dpi;
+        _isFullscreen = true;
 
         // Update the style of the window
         UpdateMaximizeable(false, false);
@@ -2129,110 +2108,17 @@ internal unsafe class Win32Window : Window
         UpdateResizeable(false, false);
         UpdateDecorations(false, true, false);
 
-        bool success = true;
-        if (state is WindowState.ExclusiveFullScreen exclusive)
-        {
-            var exclusiveScreenMode = exclusive.Mode;
-            var isResolutionDifferentFromRegistry = exclusiveScreenMode.Size != screen.SystemDisplayMode.Size;
+        // Set the window position
+        SetWindowPos(HWnd, HWND.NULL, screen.Position.X, screen.Position.Y, screen.SizeInPixels.Width, screen.SizeInPixels.Height, SWP.SWP_NOZORDER | SWP.SWP_NOACTIVATE);
+        InvalidateRect(HWnd, null, false);
+        UpdateWindow(HWnd);
 
-            // Set the window position before changing the DPI
-            // so that it won't stretch on other screens while changing the display settings
-            SetWindowPos(HWnd, HWND.NULL, screen.Position.X, screen.Position.Y, exclusiveScreenMode.Width, exclusiveScreenMode.Height, SWP.SWP_NOZORDER | SWP.SWP_NOACTIVATE);
-
-            // Keep the dpi
-            if (isResolutionDifferentFromRegistry && _dpiMode == DpiMode.Auto)
-            {
-                UpdateDpi(Dpi.Default);
-            }
-
-            DEVMODEW devModeW = default;
-            devModeW.dmSize = (ushort)sizeof(DEVMODEW);
-
-            // Save the mouse position before switching mode
-            var position = Mouse.Position;
-            var mouseRelativePosition = new PointF((float)(position.X - screen.Position.X) / screen.SizeInPixels.Width, (float)(position.Y - screen.Position.Y) / screen.SizeInPixels.Height);
-
-            fixed (char* displayName = screen.Name)
-            {
-                EnumDisplaySettingsExW((ushort*)displayName, ENUM.ENUM_CURRENT_SETTINGS, &devModeW, 0);
-
-                devModeW.dmBitsPerPel = (uint)exclusiveScreenMode.BitsPerPixel;
-                devModeW.dmPelsWidth = (uint)exclusiveScreenMode.Width;
-                devModeW.dmPelsHeight = (uint)exclusiveScreenMode.Height;
-                devModeW.dmDisplayFrequency = (uint)exclusiveScreenMode.Frequency;
-                devModeW.dmFields =
-                    DM.DM_PELSWIDTH |
-                    DM.DM_PELSHEIGHT |
-                    DM.DM_BITSPERPEL |
-                    DM.DM_DISPLAYFREQUENCY;
-
-                var result = ChangeDisplaySettingsExW((ushort*)displayName, &devModeW, HWND.NULL, CDS.CDS_FULLSCREEN, null);
-                success = result == DISP.DISP_CHANGE_SUCCESSFUL;
-            }
-
-            if (success)
-            {
-                // Similar to https://github.com/rust-windowing/winit/blob/9225b2812edcdc8abc049f4811361e10cc94cee0/src/platform_impl/windows/window.rs#LL555-L562C39
-                // Seems that `ChangeDisplaySettingsExW can take a long time enough that DWM
-                // will think that our program is frozen and will take over and won't make our Window fully fullscreen.
-                //
-                // Calling `PeekMessageW` here notifies Windows that our process is still running
-                // fine, taking control back from the DWM and ensuring that the `SetWindowPos` call
-                // below goes through.
-                MSG msg;
-                PeekMessageW(&msg, HWND.NULL, wMsgFilterMin: WM_NULL, wMsgFilterMax: WM_NULL, wRemoveMsg: PM.PM_NOREMOVE);
-
-                // Make sure to reset the size of the window, should result in the same than the initial SetWindowPos above
-                SetWindowPos(HWnd, HWND.NULL, screen.Position.X, screen.Position.Y, exclusiveScreenMode.Width, exclusiveScreenMode.Height, SWP.SWP_NOZORDER | SWP.SWP_NOACTIVATE);
-
-                // Restore the mouse position after with similar relative coordinates
-                if (mouseRelativePosition.X >= 0 && mouseRelativePosition.Y >= 0 && mouseRelativePosition.X <= 1.0f && mouseRelativePosition.Y <= 1.0f)
-                {
-                    Mouse.Position = new Point((int)(mouseRelativePosition.X * exclusiveScreenMode.Width) + screen.Position.X, (int)(mouseRelativePosition.Y * exclusiveScreenMode.Height) + screen.Position.Y);
-                }
-            }
-        }
-        else
-        {
-            ExitExclusiveFullScreen();
-
-            // If we switch from exclusive to fullscreen, restore the DPI
-            if (_dpiMode == DpiMode.Auto)
-            {
-                UpdateDpi(_dpiBeforeFullScreen);
-            }
-
-            // Set the window position
-            SetWindowPos(HWnd, HWND.NULL, screen.Position.X, screen.Position.Y, screen.SizeInPixels.Width, screen.SizeInPixels.Height, SWP.SWP_NOZORDER | SWP.SWP_NOACTIVATE);
-        }
-
-        if (success)
-        {
-            InvalidateRect(HWnd, null, false);
-            UpdateWindow(HWnd);
-
-            // Make sure that the Dispatcher is informed that we might have an active window in exclusive fullscreen and we want to disable WIN keys
-            Dispatcher.HasActiveExclusiveFullScreenWindow = _windowIsActive && state.Kind == WindowStateKind.ExclusiveFullScreen;
-        }
-        else
-        {
-            RestoreWindowBeforeFullScreen();
-        }
-
-        return success;
+        // Make sure that the Dispatcher is informed that we might have an active window in exclusive fullscreen and we want to disable WIN keys
+        //Dispatcher.HasActiveExclusiveFullScreenWindow = _windowIsActive && state.Kind == WindowState.ExclusiveFullScreen;
     }
 
     private void RestoreWindowBeforeFullScreen()
     {
-        Debug.Assert(_isFullscreen);
-        _isFullscreen = false;
-
-        // If we were previously exclusive, restore non exclusive
-        if (_state is WindowState.ExclusiveFullScreen)
-        {
-            ExitExclusiveFullScreen();
-        }
-
         if (_dpiMode == DpiMode.Auto)
         {
             UpdateDpi(_dpiBeforeFullScreen);
@@ -2241,53 +2127,20 @@ internal unsafe class Win32Window : Window
         UpdateMinimizeable(_hasMinimizeableBeforeFullScreen, false);
         UpdateMaximizeable(_hasMaximizeableBeforeFullScreen, false);
         UpdateResizeable(_hasResizeableBeforeFullScreen, false);
-        UpdateDecorations(_hasDecorationsBeforeFullScreen, invalidate: false);
+        UpdateDecorations(_hasDecorationsBeforeFullScreen, false);
+        _isFullscreen = false;
 
         // Restore the Window position
         SetWindowPos(HWnd, HWND.NULL, _windowRectBeforeFullScreen.X, _windowRectBeforeFullScreen.Y, _windowRectBeforeFullScreen.Width, _windowRectBeforeFullScreen.Height, SWP.SWP_NOZORDER | SWP.SWP_NOACTIVATE);
 
         InvalidateRect(HWnd, null, false);
         UpdateWindow(HWnd);
-        
+
         _hasMinimizeableBeforeFullScreen = default;
         _hasMaximizeableBeforeFullScreen = default;
         _hasDecorationsBeforeFullScreen = default;
         _windowRectBeforeFullScreen = default;
         _dpiBeforeFullScreen = default;
-    }
-
-    private void ExitExclusiveFullScreen()
-    {
-        // Save the mouse position before switching mode
-        var screen = GetScreen();
-
-        var position = Mouse.Position;
-        var mouseRelativePosition = new PointF(-1.0f, -1.0f);
-        if (screen != null)
-        {
-            mouseRelativePosition = new PointF((float)(position.X - screen.Position.X) / screen.SizeInPixels.Width, (float)(position.Y - screen.Position.Y) / screen.SizeInPixels.Height);
-        }
-        
-        var displayName = screen?.Name ?? null;
-        fixed (char* pDisplayName = displayName)
-        {
-            // Restore default display settings
-            ChangeDisplaySettingsExW((ushort*)pDisplayName, null, HWND.NULL, 0, null);
-        }
-
-        // Make sure that we update screen coordinates (so that the following screen instance will have been changed)
-        if (Dispatcher.ScreenManager.TryUpdateScreens())
-        {
-            Dispatcher.OnSystemEvent(SystemEventKind.ScreenChanged);
-        }
-
-        // Restore the mouse position after with similar relative coordinates
-        if (screen != null && mouseRelativePosition.X >= 0 && mouseRelativePosition.Y >= 0 && mouseRelativePosition.X <= 1.0f && mouseRelativePosition.Y <= 1.0f)
-        {
-            Mouse.Position = new Point((int)(mouseRelativePosition.X * screen.SizeInPixels.Width) + screen.Position.X, (int)(mouseRelativePosition.Y * screen.SizeInPixels.Height) + screen.Position.Y);
-        }
-
-        if (_windowIsActive) Dispatcher.HasActiveExclusiveFullScreenWindow = false;
     }
 
     private void CreateWindowHandle(WindowCreateOptions options)
@@ -2529,13 +2382,10 @@ internal unsafe class Win32Window : Window
     {
         if (_isFullscreen) throw new ArgumentException("Cannot change this property when the screen is in fullscreen");
     }
-    private void VerifyNotExclusiveFullScreen()
-    {
-        if (_state is WindowState.ExclusiveFullScreen) throw new ArgumentException("Cannot change this property when the screen is in fullscreen");
-    }
+
     private void VerifyNotFullScreenAndNotMaximized()
     {
         VerifyNotFullScreen();
-        if (_state.Kind == WindowStateKind.Maximized) throw new ArgumentException("Cannot change this property when the screen is maximized");
+        if (_state == WindowState.Maximized) throw new ArgumentException("Cannot change this property when the screen is maximized");
     }
 }

@@ -4,25 +4,13 @@
 
 namespace NWindows;
 
-public record WindowState
-
+public enum WindowState
 {
-    internal  WindowState(WindowStateKind kind)
-    {
-        Kind = kind;
-    }
-    
-    public WindowStateKind Kind { get; }
+    Normal,
 
-    public static readonly WindowState Normal = new (WindowStateKind.Normal);
+    Minimized,
 
-    public static readonly WindowState Minimized = new (WindowStateKind.Minimized);
+    Maximized,
 
-    public static readonly WindowState Maximized = new (WindowStateKind.Maximized);
-
-    public static readonly WindowState FullScreen = new (WindowStateKind.FullScreen);
-
-    public bool IsFullScreen => Kind is WindowStateKind.FullScreen or WindowStateKind.ExclusiveFullScreen;
-
-    public sealed record ExclusiveFullScreen(ScreenMode Mode) : WindowState(WindowStateKind.ExclusiveFullScreen);
+    FullScreen,
 }

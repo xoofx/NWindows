@@ -3,27 +3,35 @@ using NWindows;
 using NWindows.Input;
 using NWindows.Threading;
 
-var window = Window.Create(new()
+//Dispatcher.Current.EnableDebug = true;
+
+var mainWindow = Window.Create(new()
 {
     Title = "Hello Direct3D",
     StartPosition = WindowStartPosition.CenterScreen,
 });
 
-window.Events.Keyboard += (window1, evt) =>
+var helloTriangle = new HelloTriangle11(mainWindow);
+helloTriangle.Initialize();
+
+mainWindow.Events.Keyboard += (_, evt) =>
 {
-    if (evt.Key == Key.Escape)
+    if (evt.IsDown)
     {
-        window.Close();
-        evt.Handled = true;
+        if (evt.Key == Key.Escape)
+        {
+            mainWindow.Close();
+            evt.Handled = true;
+        }
+        else if (evt.Key == Key.Enter && (evt.Modifiers & ModifierKeys.Alt) != 0)
+        {
+            mainWindow.State = mainWindow.State == WindowState.FullScreen ? WindowState.Normal : WindowState.FullScreen;
+            evt.Handled = true;
+        }
     }
 };
 
-var helloTriangle = new HelloTriangle11(window);
-helloTriangle.Initialize();
-
 Dispatcher.Current.Events.Idle += DispatcherIdle;
-
-Console.WriteLine("Press escape to close the Window");
 Dispatcher.Current.Run();
 
 helloTriangle.Dispose();

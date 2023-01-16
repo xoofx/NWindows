@@ -40,20 +40,18 @@ public unsafe class HelloTriangle11 : DispatcherObject
     private ID3D11Buffer* _vertexBuffer;
     private ID3D11Device* _d3DDevice;
     private IDXGIAdapter1* _dxgiAdapter;
-    private IDXGIFactory1* _dxgiFactory;
+    private IDXGIFactory2* _dxgiFactory;
     private ID3D11DeviceContext* _immediateContext;
     private ID3D11RenderTargetView* _renderTargetView;
-    private IDXGISwapChain* _swapChain;
+    private IDXGISwapChain1* _swapChain;
     private RECT _scissorRect;
     private D3D11_VIEWPORT _viewport;
+
     private Size _currentSize;
-    private Size _clientSize;
 
     public HelloTriangle11(Window window)
     {
         _window = window;
-        UpdateSize();
-        _window.Events.Frame += EventsOnFrame;
     }
 
     public void Initialize()
@@ -65,6 +63,8 @@ public unsafe class HelloTriangle11 : DispatcherObject
 
     public void Draw()
     {
+        if (_window.IsDisposed) return;
+
         VerifyAccess();
         CreateWindowSizeDependentResources();
 
@@ -81,9 +81,7 @@ public unsafe class HelloTriangle11 : DispatcherObject
         }
 
         var renderTargetView = _renderTargetView;
-        var backgroundColor = stackalloc float[4];
-        backgroundColor[3] = 1.0f;
-
+        var backgroundColor = new Vector4(0, 0, 0, 1.0f);
         _immediateContext->ClearRenderTargetView(renderTargetView, (float*)&backgroundColor);
         _immediateContext->OMSetRenderTargets(1, &renderTargetView, pDepthStencilView: null);
 
@@ -109,7 +107,6 @@ public unsafe class HelloTriangle11 : DispatcherObject
     {
         VerifyAccess();
 
-        _window.Events.Frame -= EventsOnFrame;
         _window.Events.Paint -= EventsOnPaint;
 
         _immediateContext->ClearState();
@@ -124,19 +121,6 @@ public unsafe class HelloTriangle11 : DispatcherObject
         Dispose(ref _pixelShader);
         Dispose(ref _vertexShader);
     }
-    
-    private void EventsOnFrame(Window window, FrameEvent evt)
-    {
-        if (evt.FrameKind == FrameEventKind.PositionAndSizeChanged)
-        {
-            UpdateSize();
-        }
-    }
-
-    private void UpdateSize()
-    {
-        _clientSize = _window.Dpi.LogicalToPixel(_window.ClientSize);
-    }
 
     private void EventsOnPaint(Window window, PaintEvent evt)
     {
@@ -146,8 +130,8 @@ public unsafe class HelloTriangle11 : DispatcherObject
 
     private void CreateDeviceDependentResources()
     {
-        IDXGIFactory1* dxgiFactory;
-        ThrowIfFailed(CreateDXGIFactory1(__uuidof<IDXGIFactory1>(), (void**)&dxgiFactory));
+        IDXGIFactory2* dxgiFactory;
+        ThrowIfFailed(CreateDXGIFactory2(0, __uuidof<IDXGIFactory2>(), (void**)&dxgiFactory));
         _dxgiFactory = dxgiFactory;
         _dxgiAdapter = GetDxgiAdapter(dxgiFactory);
 
@@ -162,7 +146,7 @@ public unsafe class HelloTriangle11 : DispatcherObject
 
         CreateAssets();
 
-        static IDXGIAdapter1* GetDxgiAdapter(IDXGIFactory1* dxgiFactory)
+        static IDXGIAdapter1* GetDxgiAdapter(IDXGIFactory2* dxgiFactory)
         {
             IDXGIAdapter1* adapter;
 
@@ -302,12 +286,13 @@ public unsafe class HelloTriangle11 : DispatcherObject
 
     private void CreateWindowSizeDependentResources()
     {
-        if (_currentSize == _clientSize) return;
+        var windowSize = _window.Dpi.LogicalToPixel(_window.ClientSize);
 
-        const uint frameCount = 1;
+        if (windowSize == _currentSize) return;
+
+        const uint backBufferCount = 2;
         var backBufferFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
 
-        var windowSize = _clientSize;
         _currentSize = windowSize;
 
         if (_swapChain != null)
@@ -317,7 +302,7 @@ public unsafe class HelloTriangle11 : DispatcherObject
 
             Dispose(ref _renderTargetView);
 
-            ThrowIfFailed(_swapChain->ResizeBuffers(frameCount, (uint)windowSize.Width, (uint)windowSize.Height, backBufferFormat, 0));
+            ThrowIfFailed(_swapChain->ResizeBuffers(backBufferCount, (uint)windowSize.Width, (uint)windowSize.Height, backBufferFormat, 0));
         }
         else
         {
@@ -325,17 +310,6 @@ public unsafe class HelloTriangle11 : DispatcherObject
         }
 
         _renderTargetView = CreateRenderTargetView();
-
-        ID3D11RenderTargetView* CreateRenderTargetView()
-        {
-            using ComPtr<ID3D11Resource> backBuffer = null;
-            ThrowIfFailed(_swapChain->GetBuffer(0, __uuidof<ID3D11Texture2D>(), (void**)backBuffer.GetAddressOf()));
-
-            ID3D11RenderTargetView* renderTargetView;
-            ThrowIfFailed(_d3DDevice->CreateRenderTargetView(backBuffer.Get(), null, &renderTargetView));
-            return renderTargetView;
-        }
-
 
         _viewport = new D3D11_VIEWPORT
         {
@@ -355,32 +329,52 @@ public unsafe class HelloTriangle11 : DispatcherObject
             bottom = windowSize.Height
         };
 
-        IDXGISwapChain* CreateSwapChain()
+        IDXGISwapChain1* CreateSwapChain()
         {
-            var swapChainDesc = new DXGI_SWAP_CHAIN_DESC
+            var swapChainDesc = new DXGI_SWAP_CHAIN_DESC1
             {
-                BufferDesc = new DXGI_MODE_DESC
-                {
-                    Width = (uint)windowSize.Width,
-                    Height = (uint)windowSize.Height,
-                    Format = backBufferFormat,
-                },
+                Width = (uint)windowSize.Width,
+                Height = (uint)windowSize.Height,
+                Format = backBufferFormat,
                 SampleDesc = new DXGI_SAMPLE_DESC
                 {
                     Count = 1
                 },
                 BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT,
-                BufferCount = frameCount,
-                OutputWindow = (HWND)_window.Handle,
-                Windowed = TRUE,
+                BufferCount = backBufferCount,
                 SwapEffect = DXGI_SWAP_EFFECT_DISCARD,
+                Flags = 0,
             };
 
-            IDXGISwapChain* swapChain;
+            var fullScreenSwapChainDesc = new DXGI_SWAP_CHAIN_FULLSCREEN_DESC()
+            {
+                Windowed = true,
+            };
 
-            ThrowIfFailed(_dxgiFactory->CreateSwapChain((IUnknown*)_d3DDevice, &swapChainDesc, &swapChain));
+            IDXGISwapChain1* swapChain;
+
+            ThrowIfFailed(_dxgiFactory->CreateSwapChainForHwnd((IUnknown*)_d3DDevice, (HWND)_window.Handle, &swapChainDesc, &fullScreenSwapChainDesc, null, &swapChain));
+
+            // WARNING: we need to call MakeWindowAssociation on the GetParent of the swapChain
+            // not on the `_dxgiFactory` itself, otherwise DXGI_MWA_NO_ALT_ENTER won't be honored!!!
+            IDXGIFactory* dxgiFactory;
+            if (swapChain->GetParent(__uuidof<IDXGIFactory>(), (void**)&dxgiFactory).SUCCEEDED)
+            {
+                ThrowIfFailed(dxgiFactory->MakeWindowAssociation((HWND)_window.Handle, DXGI_MWA_NO_ALT_ENTER));
+                dxgiFactory->Release();
+            }
 
             return swapChain;
+        }
+
+        ID3D11RenderTargetView* CreateRenderTargetView()
+        {
+            using ComPtr<ID3D11Resource> backBuffer = null;
+            ThrowIfFailed(_swapChain->GetBuffer(0, __uuidof<ID3D11Texture2D>(), (void**)backBuffer.GetAddressOf()));
+
+            ID3D11RenderTargetView* renderTargetView;
+            ThrowIfFailed(_d3DDevice->CreateRenderTargetView(backBuffer.Get(), null, &renderTargetView));
+            return renderTargetView;
         }
     }
 
