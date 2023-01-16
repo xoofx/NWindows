@@ -133,6 +133,11 @@ public sealed record WindowCreateOptions
     public PointF DefaultSizeFactor { get; init; } = new PointF(0.6f, 0.6f);
 
     /// <summary>
+    /// Sets whether the window support the composition engine provided by the OS. Default is <c>false</c>
+    /// </summary>
+    public bool EnableComposition { get; init; } = false;
+
+    /// <summary>
     /// Verify options and throw an exception if an invalid setup is provided.
     /// </summary>
     public void Verify()

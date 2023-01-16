@@ -27,6 +27,8 @@ using static TerraFX.Interop.DirectX.DXGI;
 using static TerraFX.Interop.DirectX.DXGI_SWAP_EFFECT;
 using static TerraFX.Interop.DirectX.DXGI_ADAPTER_FLAG;
 using static TerraFX.Interop.DirectX.DXGI_FORMAT;
+using static TerraFX.Interop.DirectX.DXGI_SCALING;
+using static TerraFX.Interop.DirectX.DXGI_ALPHA_MODE;
 using static TerraFX.Interop.Windows.Windows;
 
 namespace HelloDirect3D;
@@ -61,11 +63,15 @@ public unsafe class HelloTriangle11 : DispatcherObject
         _window.Events.Paint += EventsOnPaint;
     }
 
+    public Size MaximumSize { get; set; }
+
+   
     public void Draw()
     {
         if (_window.IsDisposed) return;
 
         VerifyAccess();
+
         CreateWindowSizeDependentResources();
 
         _immediateContext->ClearState();
@@ -82,6 +88,7 @@ public unsafe class HelloTriangle11 : DispatcherObject
 
         var renderTargetView = _renderTargetView;
         var backgroundColor = new Vector4(0, 0, 0, 1.0f);
+
         _immediateContext->ClearRenderTargetView(renderTargetView, (float*)&backgroundColor);
         _immediateContext->OMSetRenderTargets(1, &renderTargetView, pDepthStencilView: null);
 
@@ -286,9 +293,12 @@ public unsafe class HelloTriangle11 : DispatcherObject
 
     private void CreateWindowSizeDependentResources()
     {
-        var windowSize = _window.Dpi.LogicalToPixel(_window.ClientSize);
+        var clientSize = _window.Dpi.LogicalToPixel(_window.ClientSize);
+        var windowSize = MaximumSize.IsEmpty ? clientSize :  WindowHelper.Min(MaximumSize, clientSize);
 
         if (windowSize == _currentSize) return;
+
+        //Console.WriteLine($"Window Size: {windowSize}");
 
         const uint backBufferCount = 2;
         var backBufferFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
@@ -342,7 +352,7 @@ public unsafe class HelloTriangle11 : DispatcherObject
                 },
                 BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT,
                 BufferCount = backBufferCount,
-                SwapEffect = DXGI_SWAP_EFFECT_DISCARD,
+                SwapEffect = DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL,
                 Flags = 0,
             };
 

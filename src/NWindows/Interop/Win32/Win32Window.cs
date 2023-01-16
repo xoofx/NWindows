@@ -12,6 +12,7 @@ using TerraFX.Interop.Windows;
 using static TerraFX.Interop.Windows.WS;
 using static TerraFX.Interop.Windows.HWND;
 using static TerraFX.Interop.Windows.MK;
+using static TerraFX.Interop.Windows.SWP;
 using static TerraFX.Interop.Windows.Windows;
 using static TerraFX.Interop.Windows.WM;
 using static TerraFX.Interop.Windows.TME;
@@ -66,12 +67,10 @@ internal unsafe class Win32Window : Window
     private HICON _windowIcon;
 
     private bool _isFullscreen;
-    private Rectangle _windowRectBeforeFullScreen;
     private bool _hasDecorationsBeforeFullScreen;
-    private bool _hasMaximizeableBeforeFullScreen;
-    private bool _hasMinimizeableBeforeFullScreen;
-    private bool _hasResizeableBeforeFullScreen;
-    private Dpi _dpiBeforeFullScreen;
+    private uint _windowStyleBeforeFullScreen;
+    private WindowState _windowStateBeforeFullScreen;
+    private Rectangle _windowBoundsBeforeFullScreen;
 
     public Win32Window(WindowCreateOptions options) : base(options)
     {
@@ -1243,7 +1242,7 @@ internal unsafe class Win32Window : Window
         DefWindowProcW(HWnd, WM_NCCALCSIZE, wParam, (LPARAM)pnCsp);
         var client = rect;
 
-        if (IsMaximized(HWnd))
+        if (!_isFullscreen&& IsMaximized(HWnd))
         {
             WINDOWINFO wi = default;
             wi.cbSize = (uint)sizeof(WINDOWINFO);
@@ -1361,7 +1360,7 @@ internal unsafe class Win32Window : Window
         // The following provides a default handling for the borders
         // Unless we are maximized or fullscreen
         bool isMaximized = IsMaximized(HWnd);
-        if (!_isFullscreen && !isMaximized)
+        if (!isMaximized)
         {
             // Diagonal are wider than the frame
             int diagonalWidth = frameSize * 2 + GetSystemMetrics(SM.SM_CXBORDER);
@@ -1453,13 +1452,10 @@ internal unsafe class Win32Window : Window
 
     internal void HandleSizeChanged(int sizeKind)
     {
-        // We don't change the state while in fullscreen mode
-        if (_isFullscreen) return;
-
         if (sizeKind == SIZE_MAXIMIZED)
         {
-            _state = WindowState.Maximized;
-            OnFrameEvent(FrameEventKind.Maximized);
+            _state = _isFullscreen ? WindowState.FullScreen : WindowState.Maximized;
+            OnFrameEvent(_isFullscreen ? FrameEventKind.FullScreen : FrameEventKind.Maximized);
         }
         else if (sizeKind == SIZE_MINIMIZED)
         {
@@ -1893,6 +1889,7 @@ internal unsafe class Win32Window : Window
                 {
                     RestoreWindowBeforeFullScreen();
                 }
+
                 ShowWindow(HWnd, SW.SW_NORMAL);
                 break;
             case WindowState.Minimized:
@@ -1900,6 +1897,7 @@ internal unsafe class Win32Window : Window
                 {
                     RestoreWindowBeforeFullScreen();
                 }
+
                 ShowWindow(HWnd, SW.SW_MINIMIZE);
                 break;
             case WindowState.Maximized:
@@ -1909,21 +1907,18 @@ internal unsafe class Win32Window : Window
                     {
                         RestoreWindowBeforeFullScreen();
                     }
+
                     ShowWindow(HWnd, SW.SW_MAXIMIZE);
                 }
+
                 break;
             case WindowState.FullScreen:
                 if (!_isFullscreen)
                 {
                     SwitchToFullScreen();
                 }
-                break;
-        }
 
-        if (_state != state)
-        {
-            _state = state;
-            OnFrameEvent(FrameEventKind.StateChanged);
+                break;
         }
     }
 
@@ -2086,32 +2081,40 @@ internal unsafe class Win32Window : Window
 
     private void SwitchToFullScreen()
     {
-        if (_state == WindowState.FullScreen) return;
-
-        var screen = GetScreenOrPrimary();
-        if (screen == null) return;
+        Debug.Assert(!_isFullscreen);
 
         // If we are switching to fullscreen (exclusive or not), save the size/decorations of the window 
-        RECT windowRect;
-        GetWindowRect(HWnd, &windowRect);
-        _windowRectBeforeFullScreen = windowRect.ToRectangle();
         _hasDecorationsBeforeFullScreen = _hasDecorations;
-        _hasMinimizeableBeforeFullScreen = _minimizeable;
-        _hasMaximizeableBeforeFullScreen = _maximizeable;
-        _hasResizeableBeforeFullScreen = _resizeable;
-        _dpiBeforeFullScreen = _dpi;
-        _isFullscreen = true;
+        _windowStyleBeforeFullScreen = GetWindowStyle(HWnd);
+        _windowStateBeforeFullScreen = _state;
+
+        RECT rect;
+        GetWindowRect(HWnd, &rect);
+        _windowBoundsBeforeFullScreen = rect.ToRectangle();
+
+        // We position relative to the screen, as if the window is moved we will restore it on the screen it has been moved
+        // with a similar position.
+        var screen = GetScreen();
+        if (screen != null)
+        {
+            var location = _windowBoundsBeforeFullScreen.Location;
+            _windowBoundsBeforeFullScreen.Location = new Point(location.X - screen.Position.X, location.Y - screen.Position.Y);
+        }
+        else
+        {
+            _windowBoundsBeforeFullScreen.Location = default;
+        }
 
         // Update the style of the window
-        UpdateMaximizeable(false, false);
-        UpdateMinimizeable(false, false);
-        UpdateResizeable(false, false);
-        UpdateDecorations(false, true, false);
+        _isFullscreen = true;
+
+        UpdateDecorations(false);
+        var newStyle = (nint)WS_POPUP | WS_CAPTION | WS_SYSMENU;
+        if (Minimizeable) newStyle |= WS_MINIMIZEBOX;
+        SetWindowLongPtr(HWnd, GWL.GWL_STYLE, newStyle);
 
         // Set the window position
-        SetWindowPos(HWnd, HWND.NULL, screen.Position.X, screen.Position.Y, screen.SizeInPixels.Width, screen.SizeInPixels.Height, SWP.SWP_NOZORDER | SWP.SWP_NOACTIVATE);
-        InvalidateRect(HWnd, null, false);
-        UpdateWindow(HWnd);
+        ShowWindow(HWnd, SW.SW_MAXIMIZE);
 
         // Make sure that the Dispatcher is informed that we might have an active window in exclusive fullscreen and we want to disable WIN keys
         //Dispatcher.HasActiveExclusiveFullScreenWindow = _windowIsActive && state.Kind == WindowState.ExclusiveFullScreen;
@@ -2119,28 +2122,27 @@ internal unsafe class Win32Window : Window
 
     private void RestoreWindowBeforeFullScreen()
     {
-        if (_dpiMode == DpiMode.Auto)
+        Debug.Assert(_isFullscreen);
+        _isFullscreen = false;
+        UpdateDecorations(_hasDecorationsBeforeFullScreen, false);
+
+        // Restore to relative position to the current screen
+        Point windowPosition = _windowBoundsBeforeFullScreen.Location;
+        var screen = GetScreen();
+        if (screen != null)
         {
-            UpdateDpi(_dpiBeforeFullScreen);
+            windowPosition = new Point(windowPosition.X + screen.Position.X, windowPosition.Y + screen.Position.Y);
         }
 
-        UpdateMinimizeable(_hasMinimizeableBeforeFullScreen, false);
-        UpdateMaximizeable(_hasMaximizeableBeforeFullScreen, false);
-        UpdateResizeable(_hasResizeableBeforeFullScreen, false);
-        UpdateDecorations(_hasDecorationsBeforeFullScreen, false);
-        _isFullscreen = false;
+        SetWindowLongPtr(HWnd, GWL.GWL_STYLE, (nint)_windowStyleBeforeFullScreen);
 
-        // Restore the Window position
-        SetWindowPos(HWnd, HWND.NULL, _windowRectBeforeFullScreen.X, _windowRectBeforeFullScreen.Y, _windowRectBeforeFullScreen.Width, _windowRectBeforeFullScreen.Height, SWP.SWP_NOZORDER | SWP.SWP_NOACTIVATE);
+        // Restore to the state it was before the full screen
+        UpdateWindowState(_windowStateBeforeFullScreen);
+        SetWindowPos(HWnd, HWND_TOP, windowPosition.X, windowPosition.Y, _windowBoundsBeforeFullScreen.Width, _windowBoundsBeforeFullScreen.Height, SWP_NOZORDER | SWP_FRAMECHANGED);
 
-        InvalidateRect(HWnd, null, false);
-        UpdateWindow(HWnd);
-
-        _hasMinimizeableBeforeFullScreen = default;
-        _hasMaximizeableBeforeFullScreen = default;
+        _windowBoundsBeforeFullScreen = default;
         _hasDecorationsBeforeFullScreen = default;
-        _windowRectBeforeFullScreen = default;
-        _dpiBeforeFullScreen = default;
+        _windowStyleBeforeFullScreen = default;
     }
 
     private void CreateWindowHandle(WindowCreateOptions options)
@@ -2316,7 +2318,6 @@ internal unsafe class Win32Window : Window
                 {
                     styleEx |= WS_EX_APPWINDOW;
                 }
-
                 break;
             }
             case WindowKind.Popup:
@@ -2328,6 +2329,12 @@ internal unsafe class Win32Window : Window
                 break;
         }
 
+        if (options.EnableComposition)
+        {
+            // Can only be setup at creation time
+            styleEx |= WS_EX_NOREDIRECTIONBITMAP;
+        }
+        
         if (options.Kind != WindowKind.Child)
         {
             if (options.Resizable)

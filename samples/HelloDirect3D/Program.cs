@@ -1,5 +1,7 @@
+using System.Drawing;
 using HelloDirect3D;
 using NWindows;
+using NWindows.Events;
 using NWindows.Input;
 using NWindows.Threading;
 
@@ -9,10 +11,20 @@ var mainWindow = Window.Create(new()
 {
     Title = "Hello Direct3D",
     StartPosition = WindowStartPosition.CenterScreen,
+    EnableComposition = true, // For smooth rendering/resizing with Direct3D/DXGI
 });
 
-var helloTriangle = new HelloTriangle11(mainWindow);
+var helloTriangle = new HelloTriangle11(mainWindow)
+{
+    // We can limit our rendering to full HD
+    // MaximumSize = new Size(1920, 1080)
+};
 helloTriangle.Initialize();
+
+mainWindow.Events.All += (window, evt) =>
+{
+    //Console.WriteLine(evt);
+};
 
 mainWindow.Events.Keyboard += (_, evt) =>
 {

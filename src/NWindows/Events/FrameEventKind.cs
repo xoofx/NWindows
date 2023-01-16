@@ -16,6 +16,7 @@ public enum FrameEventKind
     Resized,
     Minimized,
     Maximized,
+    FullScreen,
     Restored,
     FocusGained,
     FocusLost,
