@@ -6,25 +6,9 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
-    <StartupObject>NWindows.Tests.AppProgram</StartupObject>
   </PropertyGroup>
 
-  <PropertyGroup>
-    <!--Defaults for Ilc compilation-->
-    <IlcGenerateCompleteTypeMetadata>false</IlcGenerateCompleteTypeMetadata>
-    <IlcGenerateStackTraceData>true</IlcGenerateStackTraceData>
-    <IlcTrimMetadata>true</IlcTrimMetadata>
-    <IlcGenerateStackTraceData>true</IlcGenerateStackTraceData>
-    <IlcOptimizationPreference>Speed</IlcOptimizationPreference>
-    <IlcFoldIdenticalMethodBodies>true</IlcFoldIdenticalMethodBodies>
-    <IlcDisableReflection>true</IlcDisableReflection>
-    <InvariantGlobalization>true</InvariantGlobalization>
-
-    <!--NPlug prefers AOT by default, use it only if we are publishing-->
-    <!--<PublishAot Condition="'$(PublishAot)' == '' AND '$(_IsPublishing)' == 'true'">true</PublishAot>-->
-  </PropertyGroup>
-
-  <!--<ItemGroup>
+  <ItemGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.4.0" />
     <PackageReference Include="NUnit" Version="3.13.3" />
     <PackageReference Include="NUnit3TestAdapter" Version="4.3.1" />
@@ -32,7 +16,7 @@
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
-  </ItemGroup>-->
+  </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\NWindows\NWindows.csproj" />

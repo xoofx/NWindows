@@ -347,8 +347,8 @@ internal sealed unsafe class Win32Clipboard : ClipboardImpl
 
             const int endHtmlValueIndex = 41;
             const int endFragmentValueIndex = 89;
-            SetValue(header, endHtmlValueIndex, totalCount - 1);
-            SetValue(header, endFragmentValueIndex, totalCount - postHtml.Length - 1);
+            SetValue(header, endHtmlValueIndex, totalCount);
+            SetValue(header, endFragmentValueIndex, totalCount - postHtml.Length);
             GlobalUnlock(hGlobal);
 
             SetClipboardData((ushort)MapMimeToFormat[DataFormats.Html], hGlobal);
