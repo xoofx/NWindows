@@ -138,6 +138,16 @@ public sealed record WindowCreateOptions
     public bool EnableComposition { get; init; } = false;
 
     /// <summary>
+    /// Sets the DPI value used by the Window at creation time if <see cref="DpiMode"/> is set to <see cref="NWindows.DpiMode.Auto"/>. Default is Dpi(96, 96).
+    /// </summary>
+    public Dpi ManualDpi { get; init; } = Dpi.Default;
+
+    /// <summary>
+    /// Sets the DPI mode used by the Window at creation time. Default is <see cref="DpiMode.Auto"/>.
+    /// </summary>
+    public DpiMode DpiMode { get; init; } = DpiMode.Auto;
+
+    /// <summary>
     /// Verify options and throw an exception if an invalid setup is provided.
     /// </summary>
     public void Verify()

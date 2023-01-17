@@ -85,6 +85,8 @@ internal unsafe class Win32Window : Window
         _enable = true;
         _initialShowInTaskBar = options.ShowInTaskBar;
         _state = options.WindowState;
+        _dpi = options.DpiMode == DpiMode.Auto ? default : options.ManualDpi;
+        _dpiMode = options.DpiMode;
         if (options.BackgroundColor.HasValue)
         {
             UpdateBackgroundColor(options.BackgroundColor.Value, false);
@@ -1109,9 +1111,11 @@ internal unsafe class Win32Window : Window
         // By default DPI mode must be Auto
         if (_dpi.IsEmpty)
         {
-            Debug.Assert(_dpiMode == DpiMode.Auto);
-            var dpiX = Win32Helper.GetDpiForWindowSafe(hWnd);
-            _dpi = new Dpi(dpiX, dpiX);
+            if (_dpiMode == DpiMode.Auto)
+            {
+                var dpiX = Win32Helper.GetDpiForWindowSafe(hWnd);
+                _dpi = new Dpi(dpiX, dpiX);
+            }
         }
         
         if (_resizeable)
@@ -2241,6 +2245,21 @@ internal unsafe class Win32Window : Window
         var hWndParent = options.Parent is { } parentWindow ? (HWND)parentWindow.Handle : Dispatcher.Hwnd;
 
         var (style, styleEx) = GetStyleAndStyleExFromOptions(options);
+
+        //RECT rect;
+        //rect.left = positionX;
+        //rect.top = positionY;
+        //rect.right = positionX + width;
+        //rect.bottom = positionY + height;
+
+        //if (AdjustWindowRectEx(&rect, style, 0, styleEx))
+        //{
+        //    positionX = rect.left;
+        //    positionY = rect.top;
+        //    width = rect.right - rect.left;
+        //    height = rect.bottom - rect.top;
+        //}
+
         fixed (char* lpWindowName = options.Title)
         {
             _thisGcHandle = GCHandle.Alloc(this);

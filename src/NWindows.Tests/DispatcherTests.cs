@@ -204,7 +204,7 @@ public class DispatcherTests
         Assert.AreEqual(1, count);
     }
 
-    private static void SetupTimeOut([CallerMemberName] string? callerName = null)
+    public static void SetupTimeOut([CallerMemberName] string? callerName = null)
     {
         const int timeInMillis = 1000;
 
