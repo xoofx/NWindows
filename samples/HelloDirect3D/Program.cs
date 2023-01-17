@@ -52,4 +52,5 @@ void DispatcherIdle(Dispatcher dispatcher, NWindows.Threading.Events.IdleEvent e
 {
     helloTriangle.Draw();
     evt.SkipWaitForNextMessage = true;
+    evt.Handled = true;
 }

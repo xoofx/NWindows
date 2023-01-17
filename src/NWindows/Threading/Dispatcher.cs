@@ -3,12 +3,14 @@
 // See license.txt file in the project root for full license information.
 
 using System;
+using System.Collections;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Runtime.CompilerServices;
+using System.Runtime.ExceptionServices;
 using System.Threading;
 using NWindows.Input;
 using NWindows.Threading.Events;
@@ -141,7 +143,7 @@ public abstract partial class Dispatcher
     public bool HasShutdownStarted => _hasShutdownStarted;
 
     public bool HasShutdownFinished => _hasShutdownFinished;
-    
+
     public bool EnableDebug
     {
         get
@@ -205,10 +207,22 @@ public abstract partial class Dispatcher
     public void Run()
     {
         VerifyAccess();
-        PushFrameImpl(new DispatcherFrame(this));
+        if (_frames.Count != 0)
+        {
+            throw new InvalidOperationException("Cannot call run while the dispatcher is already running.");
+        }
+        try
+        {
+            PushFrameImpl(new DispatcherFrame(this));
 
-        Events.OnDispatcherEvent(ShutdownEvent.ShutdownFinished);
-        _hasShutdownFinished = true;
+            Events.OnDispatcherEvent(ShutdownEvent.ShutdownFinished);
+            _hasShutdownFinished = true;
+        }
+        finally
+        {
+            _queue.Clear();
+            ResetImpl();
+        }
     }
 
     public void PushFrame(DispatcherFrame frame)
@@ -236,7 +250,7 @@ public abstract partial class Dispatcher
         {
             frame.EnterInternal();
 
-            bool blockOnWait = true;
+            bool blockOnWait = false; // First loop step is not blocking to let the idle run at least once
             while (!_hasShutdownStarted && frame.Continue)
             {
                 // If any frame already running are asking to shutdown, we need to close this running frame as well
@@ -260,8 +274,24 @@ public abstract partial class Dispatcher
                 // Handle idle
                 // Reset the state of the idle
                 _idleEvent.SkipWaitForNextMessage = false;
-                Events.OnDispatcherEvent(_idleEvent);
-                blockOnWait = !_idleEvent.SkipWaitForNextMessage;
+                _idleEvent.Handled = false;
+
+                // Make sure that idle is being filtered/handled exception
+                try
+                {
+                    Events.OnDispatcherEvent(_idleEvent);
+                }
+                catch (Exception ex) when (FilterException(ex))
+                {
+                    if (!HandleException(ex))
+                    {
+                        // If we have an unhandled exception pass it back to the frame (outside of the wndproc)
+                        // to properly flow it back to the render loop
+                        frame.CaptureException(ExceptionDispatchInfo.Capture(ex));
+                    }
+                }
+
+                blockOnWait = !_idleEvent.Handled || !_idleEvent.SkipWaitForNextMessage;
             }
         }
         finally
@@ -281,6 +311,8 @@ public abstract partial class Dispatcher
     internal abstract void DestroyTimer(DispatcherTimer timer);
     
     internal abstract void PostQuitToMessageLoop();
+
+    internal abstract void ResetImpl();
 
     internal abstract ScreenManager ScreenManager { get; }
 

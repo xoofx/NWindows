@@ -6,6 +6,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
+using System.Linq;
 using System.Runtime.ExceptionServices;
 using System.Runtime.InteropServices;
 using System.Threading;
@@ -160,6 +161,15 @@ internal unsafe class Win32Dispatcher : Dispatcher
 
     private new static Win32Dispatcher Current => (Win32Dispatcher)Dispatcher.Current;
 
+    internal override void ResetImpl()
+    {
+        // Destroy all pending timer
+        foreach (var timer in _mapTimerToTimerId.Keys.ToList())
+        {
+            timer.Stop();
+        }
+    }
+
     internal override Win32ScreenManager ScreenManager { get; }
 
     internal override Win32InputManager InputManager { get; }
@@ -191,6 +201,7 @@ internal unsafe class Win32Dispatcher : Dispatcher
                     {
                         frame.Continue = false;
                     }
+                    Hwnd = HWND.NULL;
                 }
                 else
                 {
@@ -357,14 +368,17 @@ internal unsafe class Win32Dispatcher : Dispatcher
                 }
             }
         }
-        catch (Exception ex) when (FilterException(ex))
+        catch (Exception ex)
         {
-            if (!HandleException(ex))
+            // We need to handle the filter here
+            bool throwBackException = !FilterException(ex) || !HandleException(ex);
+            if (throwBackException)
             {
                 // If we have an unhandled exception pass it back to the frame (outside of the wndproc)
                 // to properly flow it back to the render loop
                 CurrentFrame?.CaptureException(ExceptionDispatchInfo.Capture(ex));
             }
+
             // We should never crash with an exception in a WindowProc
             result = -1;
         }

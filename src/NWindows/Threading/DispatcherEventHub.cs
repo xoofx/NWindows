@@ -104,6 +104,17 @@ public sealed class DispatcherEventHub : DispatcherObject
         }
     }
 
+    public void Clear()
+    {
+        VerifyAccess();
+        _all = null;
+        _idle = null;
+        _shutdownStarted = null;
+        _shutdownFinished = null;
+        _unhandledExceptionFilter = null;
+        _unhandledException = null;
+    }
+
     internal void OnDispatcherEvent(DispatcherEvent evt)
     {
         _all?.Invoke(Dispatcher, evt);

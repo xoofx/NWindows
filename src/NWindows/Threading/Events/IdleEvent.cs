@@ -7,4 +7,6 @@ namespace NWindows.Threading.Events;
 public sealed record IdleEvent() : DispatcherEvent(DispatcherEventKind.Idle)
 {
     public bool SkipWaitForNextMessage { get; set; }
+
+    public bool Handled { get; set; }
 }
