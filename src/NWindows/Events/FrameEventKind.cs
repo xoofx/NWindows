@@ -38,5 +38,7 @@ public enum FrameEventKind
     DpiModeChanged,
     DragDropChanged,
     ClipboardChanged,
-    DecorationsChanged
+    DecorationsChanged,
+    ThemeChanged,
+    ThemeSyncModeChanged
 }

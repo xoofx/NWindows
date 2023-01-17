@@ -11,8 +11,18 @@ var mainWindow = Window.Create(new()
 {
     Title = "Hello Direct3D",
     StartPosition = WindowStartPosition.CenterScreen,
+    BackgroundColor = GetCurrentThemeColor(),
     EnableComposition = true, // For smooth rendering/resizing with Direct3D/DXGI
 });
+
+mainWindow.Events.Frame += (window, evt) =>
+{
+    if (evt.FrameKind == FrameEventKind.ThemeChanged)
+    {
+        // Update the background color if the theme changed
+        window.BackgroundColor = GetCurrentThemeColor();
+    }
+};
 
 var helloTriangle = new HelloTriangle11(mainWindow)
 {
@@ -54,3 +64,5 @@ void DispatcherIdle(Dispatcher dispatcher, NWindows.Threading.Events.IdleEvent e
     evt.SkipWaitForNextMessage = true;
     evt.Handled = true;
 }
+
+static Color GetCurrentThemeColor() => WindowSettings.Theme == WindowTheme.Light ? Color.FromArgb(245, 245, 245) : Color.FromArgb(30, 30, 30);

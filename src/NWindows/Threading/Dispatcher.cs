@@ -317,7 +317,9 @@ public abstract partial class Dispatcher
     internal abstract ScreenManager ScreenManager { get; }
 
     internal abstract InputManager InputManager { get; }
-    
+
+    internal abstract WindowSettingsImpl WindowSettings { get; }
+
     [DoesNotReturn]
     private static void ThrowInvalidAccess()
     {

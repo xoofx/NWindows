@@ -54,6 +54,7 @@ internal unsafe class Win32Window : Window
     private bool _minimizeable;
     private bool _allowDragAndDrop;
     private bool _windowIsActive;
+    private WindowThemeSyncMode _themeSyncMode;
 
     private Color _backgroundColor;
     private HBRUSH _backgroundColorBrush;
@@ -87,6 +88,7 @@ internal unsafe class Win32Window : Window
         _state = options.WindowState;
         _dpi = options.DpiMode == DpiMode.Auto ? default : options.ManualDpi;
         _dpiMode = options.DpiMode;
+        _themeSyncMode = options.ThemeSyncMode;
         if (options.BackgroundColor.HasValue)
         {
             UpdateBackgroundColor(options.BackgroundColor.Value, false);
@@ -184,6 +186,23 @@ internal unsafe class Win32Window : Window
             if (value != _dpiMode)
             {
                 UpdateDpiMode(value);
+            }
+        }
+    }
+
+    public override WindowThemeSyncMode ThemeSyncMode
+    {
+        get
+        {
+            VerifyAccess();
+            return _themeSyncMode;
+        }
+        set
+        {
+            VerifyAccessAndNotDestroyed();
+            if (value != _themeSyncMode)
+            {
+                UpdateThemeSyncMode(value);
             }
         }
     }
@@ -733,7 +752,7 @@ internal unsafe class Win32Window : Window
 
             case WM_CREATE:
                 // https://learn.microsoft.com/en-us/windows/win32/winmsg/wm-create
-                HandleCreate();
+                HandleCreate((CREATESTRUCTW*)lParam);
                 result = 0;
                 break;
 
@@ -847,9 +866,72 @@ internal unsafe class Win32Window : Window
                 // Mark the dispatcher to not process Windows key if we have an active window in fullscreen
                 //Dispatcher.HasActiveExclusiveFullScreenWindow = _windowIsActive && _state.Kind == WindowState.ExclusiveFullScreen;
                 break;
+
+            case WM_STYLECHANGED:
+                UpdateStyleChanged((int)wParam, in *(STYLESTRUCT*) lParam);
+                result = 0;
+                break;
+
+            case WM_SETTINGCHANGE:
+                HandleSettingsChanged((int) wParam, (char*) lParam);
+                result = 0;
+                break;
         }
 
         return result;
+    }
+
+    private void HandleSettingsChanged(int wParam, char* lParam)
+    {
+        if (lParam == null) return;
+        var span = new Span<char>(lParam, int.MaxValue);
+        span = span.Slice(0, span.IndexOf((char) 0));
+
+        if (span.SequenceEqual("ImmersiveColorSet"))
+        {
+            UpdateTheme();
+            OnFrameEvent(FrameEventKind.ThemeChanged);
+        }
+    }
+
+    private void UpdateTheme()
+    {
+        if (!_isCompositionEnabled)
+        {
+            return;
+        }
+
+        BOOL value = _themeSyncMode == WindowThemeSyncMode.Auto ? WindowSettings.Theme == WindowTheme.Dark : _themeSyncMode == WindowThemeSyncMode.Dark;
+        DwmSetWindowAttribute(HWnd, (uint)DWMWINDOWATTRIBUTE.DWMWA_USE_IMMERSIVE_DARK_MODE, &value, (uint)sizeof(BOOL));
+    }
+
+    private void UpdateStyleChanged(int wParam, in STYLESTRUCT styleStruct)
+    {
+        var newStyle = styleStruct.styleNew;
+        var changes = styleStruct.styleNew ^ styleStruct.styleOld;
+        if (wParam == GWL.GWL_STYLE)
+        {
+            NotifyChangeOfStyle(changes, newStyle, WS_SIZEBOX, ref _resizeable, FrameEventKind.ResizeableChanged);
+            NotifyChangeOfStyle(changes, newStyle, WS_MAXIMIZEBOX, ref _maximizeable, FrameEventKind.MaximizeableChanged);
+            NotifyChangeOfStyle(changes, newStyle, WS_MINIMIZEBOX, ref _minimizeable, FrameEventKind.MinimizeableChanged);
+        }
+        else if (wParam == GWL.GWL_EXSTYLE)
+        {
+            NotifyChangeOfStyle(changes, newStyle, WS_EX_ACCEPTFILES, ref _allowDragAndDrop, FrameEventKind.DragDropChanged);
+        }
+
+    }
+    private void NotifyChangeOfStyle(uint changes, uint newStyle, int toCheck, ref bool value, FrameEventKind changeKind)
+    {
+        if ((changes & toCheck) != 0)
+        {
+            var previous = value;
+            value = (newStyle & toCheck) != 0;
+            if (previous != value)
+            {
+                OnFrameEvent(changeKind);
+            }
+        }
     }
 
     private void SetWindowBounds(Rectangle bounds)
@@ -1232,8 +1314,10 @@ internal unsafe class Win32Window : Window
         }
     }
 
-    private void HandleCreate()
+    private void HandleCreate(CREATESTRUCTW* createdWindow)
     {
+        _position = new Point(createdWindow->x, createdWindow->y);
+        _size = Dpi.PixelToLogical(new Size(createdWindow->cx, createdWindow->cy));
         OnFrameEvent(FrameEventKind.Created);
     }
 
@@ -1728,6 +1812,17 @@ internal unsafe class Win32Window : Window
         }
     }
 
+
+    private void UpdateThemeSyncMode(WindowThemeSyncMode value)
+    {
+        UpdateTheme();
+
+        if (_themeSyncMode != value)
+        {
+            OnFrameEvent(FrameEventKind.ThemeSyncModeChanged);
+        }
+    }
+
     private void UpdateBackgroundColor(Color value, bool notify = true)
     {
         // If we don't have a default color brush
@@ -1793,12 +1888,7 @@ internal unsafe class Win32Window : Window
             exStyle &= ~(uint)WS_EX_ACCEPTFILES;
         }
         SetWindowLongPtr(HWnd, GWL.GWL_EXSTYLE, (nint)exStyle);
-
-        _allowDragAndDrop = value;
-        if (notify)
-        {
-            OnFrameEvent(FrameEventKind.DragDropChanged);
-        }
+        // _allowDragAndDrop set by WindowProc
     }
 
     private void UpdateResizeable(bool value, bool invalidate = true)
@@ -1819,19 +1909,7 @@ internal unsafe class Win32Window : Window
             style &= ~(uint)(WS_SIZEBOX | WS_MAXIMIZEBOX);
         }
         SetWindowLongPtr(HWnd, GWL.GWL_STYLE, (nint)style);
-
-        if (invalidate)
-        {
-            InvalidateRect(HWnd, null, false);
-            UpdateWindow(HWnd);
-        }
-
-        bool changed = _resizeable != value;
-        _resizeable = value;
-        if (changed)
-        {
-            OnFrameEvent(FrameEventKind.ResizeableChanged);
-        }
+        // _resizeable set by WindowProc
     }
 
     private void UpdateMaximizeable(bool value, bool invalidate = true)
@@ -1852,14 +1930,9 @@ internal unsafe class Win32Window : Window
             InvalidateRect(HWnd, null, false);
             UpdateWindow(HWnd);
         }
-
-        bool changed = _maximizeable != value;
-        _maximizeable = value;
-        if (changed)
-        {
-            OnFrameEvent(FrameEventKind.MaximizeableChanged);
-        }
+        // _maximizeable set by WindowProc
     }
+
 
     private void UpdateMinimizeable(bool value, bool invalidate = true)
     {
@@ -1879,9 +1952,7 @@ internal unsafe class Win32Window : Window
             InvalidateRect(HWnd, null, false);
             UpdateWindow(HWnd);
         }
-
-        _minimizeable = value;
-        OnFrameEvent(FrameEventKind.MinimizeableChanged);
+        // _minimizeable set by WindowProc
     }
 
     private void UpdateWindowState(WindowState state)
@@ -2283,14 +2354,10 @@ internal unsafe class Win32Window : Window
             UpdateThemeActive();
             UpdateCompositionEnabled(_hasDecorations, false);
 
+                UpdateTheme();
+
             // Check for clipboard events
             AddClipboardFormatListener(HWnd);
-
-            // Update the location and size of the window after creation and before making it visible
-            if (Win32Helper.TryGetWindowPositionAndSize(HWnd, out var bounds))
-            {
-                SetWindowBounds(bounds);
-            }
 
             if (Kind != WindowKind.Child)
             {

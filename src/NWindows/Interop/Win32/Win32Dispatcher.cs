@@ -13,6 +13,7 @@ using System.Threading;
 using NWindows.Events;
 using NWindows.Threading;
 using TerraFX.Interop.Windows;
+using TerraFX.Interop.WinRT;
 using static TerraFX.Interop.Windows.CS;
 using static TerraFX.Interop.Windows.GWLP;
 using static TerraFX.Interop.Windows.IDC;
@@ -80,6 +81,13 @@ internal unsafe class Win32Dispatcher : Dispatcher
         // Force to unknown before setting STA to avoid a runtime error
         Win32Ole.Initialize();
 
+        // Initialize WinRT (required for Win32WindowSettings)
+        WinRT.Initialize();
+
+        ScreenManager = new Win32ScreenManager();
+        InputManager = new Win32InputManager(this);
+        WindowSettings = new Win32WindowSettings();
+
         // Initialization of the keyboard hook only on the dispatcher thread
         lock (GlobalLock)
         {
@@ -88,8 +96,6 @@ internal unsafe class Win32Dispatcher : Dispatcher
                 _keyboardHook = SetWindowsHookExW(WH.WH_KEYBOARD_LL, &LowLevelKeyboardProc, Win32Helper.ModuleHandle, 0);
             }
         }
-
-        // TODO: call UnhookWindowsHookEx 
 
         // Load the default icon application
         var icon = LoadIconW(Win32Helper.ModuleHandle, IDI_APPLICATION);
@@ -141,9 +147,6 @@ internal unsafe class Win32Dispatcher : Dispatcher
             _hotplugDetected = RegisterWindowMessageW((ushort*)lpszClassName);
         }
 
-        ScreenManager = new Win32ScreenManager();
-        InputManager = new Win32InputManager(this);
-
         fixed (char* lpszWindowMessage = "NWindows.DispatcherProcessQueue")
             WM_DISPATCHER_QUEUE = RegisterWindowMessageW((ushort*)lpszWindowMessage);
 
@@ -173,6 +176,8 @@ internal unsafe class Win32Dispatcher : Dispatcher
     internal override Win32ScreenManager ScreenManager { get; }
 
     internal override Win32InputManager InputManager { get; }
+
+    internal override WindowSettingsImpl WindowSettings { get; }
 
     internal override void WaitAndDispatchMessage(bool blockOnWait)
     {

@@ -4,6 +4,8 @@ using NWindows.Events;
 using NWindows.Input;
 using NWindows.Threading;
 
+//Dispatcher.Current.EnableDebug = true;
+
 int popupCount = 0;
 var popupEventHub = new WindowEventHub();
 popupEventHub.All += PopupEventHandler;
@@ -14,10 +16,19 @@ mainEventHub.All += MainEventHandler;
 var mainWindow = Window.Create(new()
 {
     Title = "Multi Window",
-    BackgroundColor = Color.DarkSlateGray,
+    BackgroundColor = GetCurrentThemeColor(),
     StartPosition = WindowStartPosition.CenterScreen,
     Events = mainEventHub,
 });
+
+mainWindow.Events.Frame += (window, evt) =>
+{
+    // Update the background color if the theme changed
+    if (evt.FrameKind == FrameEventKind.ThemeChanged)
+    {
+        window.BackgroundColor = GetCurrentThemeColor();
+    }
+};
 
 Console.WriteLine("----------------------------------------------------");
 Console.WriteLine("Multi Window Sample");
@@ -113,3 +124,5 @@ static void PopupEventHandler(Window window, WindowEvent evt)
         Console.WriteLine($"Window \"{window.Title}\" is going to be closed");
     }
 }
+
+static Color GetCurrentThemeColor() => WindowSettings.Theme == WindowTheme.Light ? Color.FromArgb(245, 245, 245) : Color.FromArgb(30, 30, 30);

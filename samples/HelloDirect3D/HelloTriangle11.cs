@@ -87,7 +87,8 @@ public unsafe class HelloTriangle11 : DispatcherObject
         }
 
         var renderTargetView = _renderTargetView;
-        var backgroundColor = new Vector4(0, 0, 0, 1.0f);
+        var windowBackgroundColor = _window.BackgroundColor;
+        var backgroundColor = new Vector4(windowBackgroundColor.R / 255.0f, windowBackgroundColor.G / 255.0f, windowBackgroundColor.B / 255.0f, 1.0f);
 
         _immediateContext->ClearRenderTargetView(renderTargetView, (float*)&backgroundColor);
         _immediateContext->OMSetRenderTargets(1, &renderTargetView, pDepthStencilView: null);

@@ -45,6 +45,8 @@ public abstract class Window : DispatcherObject, INativeWindow
     public abstract Dpi Dpi { get; set; }
     
     public abstract DpiMode DpiMode { get; set; }
+    
+    public abstract WindowThemeSyncMode ThemeSyncMode { get; set; }
 
     public abstract Color BackgroundColor { get; set; }
 

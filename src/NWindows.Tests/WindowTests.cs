@@ -35,20 +35,20 @@ public class WindowTests
         });
     }
 
-    //[Test]
-    public Task TestMultiEventWindow()
+    [Test]
+    public Task TestWindowPositionSizeTitle()
     {
         return RunDispatcher(writer =>
         {
             var windowEventHub = new WindowEventHub();
-            windowEventHub.All += (window, evt) => writer.WriteLine($"Window Event: {evt} Position: {window.Position} Size: {window.Size} Title: {window.Title}");
+            windowEventHub.All += (window, evt) => writer.WriteLine($"Window Event: {evt} Position: {window.Position} Size: {window.Size} Title: \"{window.Title}\"");
 
             var window = Window.Create(new()
             {
                 Position = new Point(4, 4),
-                Size = new Size(32, 32),
+                Size = new Size(320, 320),
                 Visible = false,
-                DpiMode = DpiMode.Manual,
+                DpiMode = DpiMode.Manual, // Force manual DPI for the tests
                 Events = windowEventHub,
                 StartPosition = WindowStartPosition.Default,
             });
@@ -56,13 +56,37 @@ public class WindowTests
             bool isWindowClosed = false;
             Dispatcher.Current.Events.Idle += (dispatcher, evt) =>
             {
+                writer.WriteLine("--- Change Position");
                 window.Position = new Point(11, 12);
-                window.Size = new SizeF(64, 128);
+                window.Position = new Point(11, 12);  // Check that setting the same value doesn't duplicate
+                writer.WriteLine("--- Change Size");
+                window.Size = new SizeF(350, 360);
+                window.Size = new SizeF(350, 360);
+                writer.WriteLine("--- Change Title");
                 window.Title = "Hello from there";
-                window.ClientSize = new SizeF(64, 128);
-
+                window.Title = "Hello from there";
+                writer.WriteLine("--- Change Client Size");
+                window.ClientSize = new SizeF(400, 320);
+                window.ClientSize = new SizeF(400, 320);
+                writer.WriteLine("--- Change Decoration");
+                window.HasDecorations = false;
+                window.HasDecorations = false;
+                writer.WriteLine("--- Change Maximizeable");
+                window.Maximizeable = false;
+                window.Maximizeable = false;
+                writer.WriteLine("--- Change Minimizeable");
+                window.Minimizeable = false;
+                window.Minimizeable = false;
+                writer.WriteLine("--- Change BackgroundColor");
+                window.BackgroundColor = Color.Red;
+                window.BackgroundColor = Color.Red;
+                writer.WriteLine("--- Change Resizeable");
+                window.Resizeable = false;
+                window.Resizeable = true;
+                window.Resizeable = true;
                 if (!isWindowClosed)
                 {
+                    writer.WriteLine("--- Request Closing");
                     window.Close();
                 }
             };
@@ -86,8 +110,8 @@ public class WindowTests
         var writer = new StringWriter();
         var thread = new Thread(() =>
             {
-                //Dispatcher.Current.EnableDebug = true;
-                //Dispatcher.Current.DebugOutput = writer.WriteLine;
+                Dispatcher.Current.EnableDebug = true;
+                Dispatcher.Current.DebugOutput = writer.WriteLine;
                 
                 Dispatcher.Current.Events.All += (dispatcher, evt) => writer.WriteLine($"Dispatcher Event: {evt}");
                 setup(writer);
