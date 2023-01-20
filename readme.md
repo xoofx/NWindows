@@ -65,6 +65,15 @@ For more details on how to use NWindows, please visit the [user guide](https://g
 
 This software is released under the [BSD-2-Clause license](https://opensource.org/licenses/BSD-2-Clause). 
 
+## Credits
+
+NWindows is using the following libraries:
+
+- The fantastic [TerraFX.Interop.Windows](https://github.com/terrafx/terrafx.interop.windows) for the interop layer with Windows API. 
+  > This library is integrated with a [custom codegen Roslyn tool](src/NWindows.Terrafx.Interop.CodeGen/Program.cs) that will copy all the transitive usage of TerraFX and internalize them into this repository to avoid the the whole TerraFX library to be visible to NWindows's users.
+  > 
+  > In the end, this copy is only adding 45KB of .NET code to NWindows instead of the 15MB dependency of the whole TerraFX library.
+
 ## Author
 
 Alexandre Mutel aka [xoofx](https://xoofx.com).
