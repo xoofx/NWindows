@@ -5,7 +5,7 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
-using NWindows.Interop.Win32;
+using NWindows.Platforms.Win32;
 
 namespace NWindows;
 

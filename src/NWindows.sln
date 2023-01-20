@@ -19,15 +19,19 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "general", "general", "{BBC4
 		..\readme.md = ..\readme.md
 	EndProjectSection
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HelloWorld", "..\samples\HelloWorld\HelloWorld.csproj", "{6CEED6F2-455A-4DA1-9A3A-ACA7C7EEFA14}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "HelloWorld", "..\samples\HelloWorld\HelloWorld.csproj", "{6CEED6F2-455A-4DA1-9A3A-ACA7C7EEFA14}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "samples", "samples", "{2D7486E5-BC28-4C8B-84DD-96BE7DC4009D}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "lib", "lib", "{88FE95AE-766C-44F2-98AB-1D88CBA47465}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MultiWindow", "..\samples\MultiWindow\MultiWindow.csproj", "{1760BD4E-5C7D-4203-937A-29816AC39007}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MultiWindow", "..\samples\MultiWindow\MultiWindow.csproj", "{1760BD4E-5C7D-4203-937A-29816AC39007}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HelloDirect3D", "..\samples\HelloDirect3D\HelloDirect3D.csproj", "{21505F4E-68D7-4403-81C0-A6A226DC16B0}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "HelloDirect3D", "..\samples\HelloDirect3D\HelloDirect3D.csproj", "{21505F4E-68D7-4403-81C0-A6A226DC16B0}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tools", "tools", "{1AB2183A-D3DF-4BEE-9345-D9409A88ECEF}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NWindows.Terrafx.Interop.CodeGen", "NWindows.Terrafx.Interop.CodeGen\NWindows.Terrafx.Interop.CodeGen.csproj", "{09D7B974-18EA-4269-87D0-4576B8E8D036}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -55,6 +59,10 @@ Global
 		{21505F4E-68D7-4403-81C0-A6A226DC16B0}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{21505F4E-68D7-4403-81C0-A6A226DC16B0}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{21505F4E-68D7-4403-81C0-A6A226DC16B0}.Release|Any CPU.Build.0 = Release|Any CPU
+		{09D7B974-18EA-4269-87D0-4576B8E8D036}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{09D7B974-18EA-4269-87D0-4576B8E8D036}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{09D7B974-18EA-4269-87D0-4576B8E8D036}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{09D7B974-18EA-4269-87D0-4576B8E8D036}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -65,6 +73,7 @@ Global
 		{6CEED6F2-455A-4DA1-9A3A-ACA7C7EEFA14} = {2D7486E5-BC28-4C8B-84DD-96BE7DC4009D}
 		{1760BD4E-5C7D-4203-937A-29816AC39007} = {2D7486E5-BC28-4C8B-84DD-96BE7DC4009D}
 		{21505F4E-68D7-4403-81C0-A6A226DC16B0} = {2D7486E5-BC28-4C8B-84DD-96BE7DC4009D}
+		{09D7B974-18EA-4269-87D0-4576B8E8D036} = {1AB2183A-D3DF-4BEE-9345-D9409A88ECEF}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {95E8F3B3-49E8-400E-97A1-38D8B946DFCA}

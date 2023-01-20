@@ -12,6 +12,8 @@
     <IsTrimmable>true</IsTrimmable>
     <!--Disable warning for platform dependent code, as we are making sure that it is checked at (AOT) compilation time-->
     <NoWarn>$(NoWarn);CA1416</NoWarn>
+
+    <UseTerraFXPackage Condition="'$(UseTerraFXPackage)' == ''">false</UseTerraFXPackage>
   </PropertyGroup>
 
   <PropertyGroup>
@@ -36,11 +38,27 @@
   </ItemGroup>
 
   <ItemGroup>
-    <InternalsVisibleTo Include="$(AssemblyName).Tests" />
+    <!--<InternalsVisibleTo Include="$(AssemblyName).Tests" />-->
     <PackageReference Include="MinVer" Version="4.2.0">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Interop\TerraFX\" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(UseTerraFXPackage)' == 'true'">
+    <Compile Remove="Interop\TerraFX\**\*.cs" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(UseTerraFXPackage)' == 'true'">
     <PackageReference Include="TerraFX.Interop.Windows" Version="10.0.22621" />
   </ItemGroup>
+
+  <!--<ItemGroup Condition="Exists('$(TerraFXProject)')">
+    <ProjectReference Include="$(TerraFXProject)"/>
+  </ItemGroup>-->
+
 </Project>

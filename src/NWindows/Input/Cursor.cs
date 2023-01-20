@@ -3,7 +3,8 @@
 // See license.txt file in the project root for full license information.
 
 using System;
-using NWindows.Interop.Win32;
+using NWindows.Platforms.Win32;
+
 // ReSharper disable InconsistentNaming
 
 namespace NWindows.Input;

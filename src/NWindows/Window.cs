@@ -5,6 +5,7 @@
 using System;
 using System.Drawing;
 using NWindows.Events;
+using NWindows.Platforms.Win32;
 using NWindows.Threading;
 
 namespace NWindows;
@@ -141,7 +142,7 @@ public abstract class Window : DispatcherObject, INativeWindow
 
         if (OperatingSystem.IsWindows())
         {
-            return new Interop.Win32.Win32Window(options);
+            return new Win32Window(options);
         }
 
         throw new PlatformNotSupportedException();

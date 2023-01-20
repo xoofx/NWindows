@@ -4,7 +4,7 @@
 
 using System;
 using System.Drawing;
-using NWindows.Interop.Win32;
+using NWindows.Platforms.Win32;
 
 namespace NWindows;
 
