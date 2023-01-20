@@ -6,7 +6,7 @@ NWindows is a cross-platform window creation and management library for .NET.
 
 > NWindows is aimed to provide all the infrastructure to manipulate a Window in a cross-platform manner and to interact with the input.
 >
-> It is **primarily meant to be used to create higher level application** (games, multimedia apps) or **UI Frameworks**.
+> It is **primarily meant to be used to create higher level applications** (games, multimedia apps) or **UI Frameworks**.
 >
 > NOTICE: The first version is only supporting the Windows 10+ platform. Help wanted for other platforms! 🤗
 
