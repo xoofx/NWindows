@@ -22,6 +22,9 @@ EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "HelloWorld", "..\samples\HelloWorld\HelloWorld.csproj", "{6CEED6F2-455A-4DA1-9A3A-ACA7C7EEFA14}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "samples", "samples", "{2D7486E5-BC28-4C8B-84DD-96BE7DC4009D}"
+	ProjectSection(SolutionItems) = preProject
+		..\samples\readme.md = ..\samples\readme.md
+	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "lib", "lib", "{88FE95AE-766C-44F2-98AB-1D88CBA47465}"
 EndProject
@@ -31,7 +34,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "HelloDirect3D", "..\samples
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tools", "tools", "{1AB2183A-D3DF-4BEE-9345-D9409A88ECEF}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NWindows.Terrafx.Interop.CodeGen", "NWindows.Terrafx.Interop.CodeGen\NWindows.Terrafx.Interop.CodeGen.csproj", "{09D7B974-18EA-4269-87D0-4576B8E8D036}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NWindows.Terrafx.Interop.CodeGen", "NWindows.Terrafx.Interop.CodeGen\NWindows.Terrafx.Interop.CodeGen.csproj", "{09D7B974-18EA-4269-87D0-4576B8E8D036}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
