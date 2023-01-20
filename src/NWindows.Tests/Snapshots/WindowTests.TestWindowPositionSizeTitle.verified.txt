@@ -1,25 +1,25 @@
-﻿Window Event: FrameEvent { Kind = Frame, FrameKind = Created } Position: {X=4,Y=4} Size: {Width=320, Height=320} Title: "NWindows Window"
+﻿Window Event: FrameEvent { Kind = Frame, ChangeKind = Created } Position: {X=4,Y=4} Size: {Width=320, Height=320} Title: "NWindows Window"
 Dispatcher Event: IdleEvent { Kind = Idle, SkipWaitForNextMessage = False, Handled = False }
 --- Change Position
-Window Event: FrameEvent { Kind = Frame, FrameKind = Moved } Position: {X=11,Y=12} Size: {Width=320, Height=320} Title: "NWindows Window"
+Window Event: FrameEvent { Kind = Frame, ChangeKind = Moved } Position: {X=11,Y=12} Size: {Width=320, Height=320} Title: "NWindows Window"
 --- Change Size
-Window Event: FrameEvent { Kind = Frame, FrameKind = Resized } Position: {X=11,Y=12} Size: {Width=350, Height=360} Title: "NWindows Window"
+Window Event: FrameEvent { Kind = Frame, ChangeKind = Resized } Position: {X=11,Y=12} Size: {Width=350, Height=360} Title: "NWindows Window"
 --- Change Title
-Window Event: FrameEvent { Kind = Frame, FrameKind = TitleChanged } Position: {X=11,Y=12} Size: {Width=350, Height=360} Title: "Hello from there"
+Window Event: FrameEvent { Kind = Frame, ChangeKind = TitleChanged } Position: {X=11,Y=12} Size: {Width=350, Height=360} Title: "Hello from there"
 --- Change Decoration
-Window Event: FrameEvent { Kind = Frame, FrameKind = DecorationsChanged } Position: {X=11,Y=12} Size: {Width=350, Height=360} Title: "Hello from there"
+Window Event: FrameEvent { Kind = Frame, ChangeKind = DecorationsChanged } Position: {X=11,Y=12} Size: {Width=350, Height=360} Title: "Hello from there"
 --- Change Maximizeable
-Window Event: FrameEvent { Kind = Frame, FrameKind = MaximizeableChanged } Position: {X=11,Y=12} Size: {Width=350, Height=360} Title: "Hello from there"
+Window Event: FrameEvent { Kind = Frame, ChangeKind = MaximizeableChanged } Position: {X=11,Y=12} Size: {Width=350, Height=360} Title: "Hello from there"
 --- Change Minimizeable
-Window Event: FrameEvent { Kind = Frame, FrameKind = MinimizeableChanged } Position: {X=11,Y=12} Size: {Width=350, Height=360} Title: "Hello from there"
+Window Event: FrameEvent { Kind = Frame, ChangeKind = MinimizeableChanged } Position: {X=11,Y=12} Size: {Width=350, Height=360} Title: "Hello from there"
 --- Change BackgroundColor
-Window Event: FrameEvent { Kind = Frame, FrameKind = BackgroundColorChanged } Position: {X=11,Y=12} Size: {Width=350, Height=360} Title: "Hello from there"
+Window Event: FrameEvent { Kind = Frame, ChangeKind = BackgroundColorChanged } Position: {X=11,Y=12} Size: {Width=350, Height=360} Title: "Hello from there"
 --- Change Resizeable
-Window Event: FrameEvent { Kind = Frame, FrameKind = ResizeableChanged } Position: {X=11,Y=12} Size: {Width=350, Height=360} Title: "Hello from there"
-Window Event: FrameEvent { Kind = Frame, FrameKind = ResizeableChanged } Position: {X=11,Y=12} Size: {Width=350, Height=360} Title: "Hello from there"
-Window Event: FrameEvent { Kind = Frame, FrameKind = MaximizeableChanged } Position: {X=11,Y=12} Size: {Width=350, Height=360} Title: "Hello from there"
+Window Event: FrameEvent { Kind = Frame, ChangeKind = ResizeableChanged } Position: {X=11,Y=12} Size: {Width=350, Height=360} Title: "Hello from there"
+Window Event: FrameEvent { Kind = Frame, ChangeKind = ResizeableChanged } Position: {X=11,Y=12} Size: {Width=350, Height=360} Title: "Hello from there"
+Window Event: FrameEvent { Kind = Frame, ChangeKind = MaximizeableChanged } Position: {X=11,Y=12} Size: {Width=350, Height=360} Title: "Hello from there"
 --- Request Closing
 Window Event: CloseEvent { Kind = Close, Cancel = False } Position: {X=11,Y=12} Size: {Width=350, Height=360} Title: "Hello from there"
-Window Event: FrameEvent { Kind = Frame, FrameKind = Destroyed } Position: {X=11,Y=12} Size: {Width=350, Height=360} Title: "Hello from there"
+Window Event: FrameEvent { Kind = Frame, ChangeKind = Destroyed } Position: {X=11,Y=12} Size: {Width=350, Height=360} Title: "Hello from there"
 Dispatcher Event: ShutdownEvent { Kind = ShutdownStarted }
 Dispatcher Event: ShutdownEvent { Kind = ShutdownFinished }

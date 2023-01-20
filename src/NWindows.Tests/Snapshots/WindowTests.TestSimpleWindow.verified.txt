@@ -1,6 +1,6 @@
-﻿Window Event: FrameEvent { Kind = Frame, FrameKind = Created }
+﻿Window Event: FrameEvent { Kind = Frame, ChangeKind = Created }
 Dispatcher Event: IdleEvent { Kind = Idle, SkipWaitForNextMessage = False, Handled = False }
 Window Event: CloseEvent { Kind = Close, Cancel = False }
-Window Event: FrameEvent { Kind = Frame, FrameKind = Destroyed }
+Window Event: FrameEvent { Kind = Frame, ChangeKind = Destroyed }
 Dispatcher Event: ShutdownEvent { Kind = ShutdownStarted }
 Dispatcher Event: ShutdownEvent { Kind = ShutdownFinished }
