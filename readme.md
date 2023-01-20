@@ -14,7 +14,7 @@ NWindows is a cross-platform window creation and management library for .NET.
 
 - Very **lightweight** with **zero-dependencies** `.NET 7+` library.
 - **GC friendly** (Zero allocation for the events).
-- **NativeAOT support** (including the "reflection free mode")
+- **NativeAOT/trimmable library** (including the "reflection free mode")
   - You can create a small app under 1.5 MB.
 - Create **top-level** and **popup windows**.
   - Support for **border-less** windows.
