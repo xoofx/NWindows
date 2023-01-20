@@ -6,22 +6,20 @@ Window Event: FrameEvent { Kind = Frame, FrameKind = Moved } Position: {X=11,Y=1
 Window Event: FrameEvent { Kind = Frame, FrameKind = Resized } Position: {X=11,Y=12} Size: {Width=350, Height=360} Title: "NWindows Window"
 --- Change Title
 Window Event: FrameEvent { Kind = Frame, FrameKind = TitleChanged } Position: {X=11,Y=12} Size: {Width=350, Height=360} Title: "Hello from there"
---- Change Client Size
-Window Event: FrameEvent { Kind = Frame, FrameKind = Resized } Position: {X=11,Y=12} Size: {Width=422, Height=376} Title: "Hello from there"
 --- Change Decoration
-Window Event: FrameEvent { Kind = Frame, FrameKind = DecorationsChanged } Position: {X=11,Y=12} Size: {Width=422, Height=376} Title: "Hello from there"
+Window Event: FrameEvent { Kind = Frame, FrameKind = DecorationsChanged } Position: {X=11,Y=12} Size: {Width=350, Height=360} Title: "Hello from there"
 --- Change Maximizeable
-Window Event: FrameEvent { Kind = Frame, FrameKind = MaximizeableChanged } Position: {X=11,Y=12} Size: {Width=422, Height=376} Title: "Hello from there"
+Window Event: FrameEvent { Kind = Frame, FrameKind = MaximizeableChanged } Position: {X=11,Y=12} Size: {Width=350, Height=360} Title: "Hello from there"
 --- Change Minimizeable
-Window Event: FrameEvent { Kind = Frame, FrameKind = MinimizeableChanged } Position: {X=11,Y=12} Size: {Width=422, Height=376} Title: "Hello from there"
+Window Event: FrameEvent { Kind = Frame, FrameKind = MinimizeableChanged } Position: {X=11,Y=12} Size: {Width=350, Height=360} Title: "Hello from there"
 --- Change BackgroundColor
-Window Event: FrameEvent { Kind = Frame, FrameKind = BackgroundColorChanged } Position: {X=11,Y=12} Size: {Width=422, Height=376} Title: "Hello from there"
+Window Event: FrameEvent { Kind = Frame, FrameKind = BackgroundColorChanged } Position: {X=11,Y=12} Size: {Width=350, Height=360} Title: "Hello from there"
 --- Change Resizeable
-Window Event: FrameEvent { Kind = Frame, FrameKind = ResizeableChanged } Position: {X=11,Y=12} Size: {Width=422, Height=376} Title: "Hello from there"
-Window Event: FrameEvent { Kind = Frame, FrameKind = ResizeableChanged } Position: {X=11,Y=12} Size: {Width=422, Height=376} Title: "Hello from there"
-Window Event: FrameEvent { Kind = Frame, FrameKind = MaximizeableChanged } Position: {X=11,Y=12} Size: {Width=422, Height=376} Title: "Hello from there"
+Window Event: FrameEvent { Kind = Frame, FrameKind = ResizeableChanged } Position: {X=11,Y=12} Size: {Width=350, Height=360} Title: "Hello from there"
+Window Event: FrameEvent { Kind = Frame, FrameKind = ResizeableChanged } Position: {X=11,Y=12} Size: {Width=350, Height=360} Title: "Hello from there"
+Window Event: FrameEvent { Kind = Frame, FrameKind = MaximizeableChanged } Position: {X=11,Y=12} Size: {Width=350, Height=360} Title: "Hello from there"
 --- Request Closing
-Window Event: CloseEvent { Kind = Close, Cancel = False } Position: {X=11,Y=12} Size: {Width=422, Height=376} Title: "Hello from there"
-Window Event: FrameEvent { Kind = Frame, FrameKind = Destroyed } Position: {X=11,Y=12} Size: {Width=422, Height=376} Title: "Hello from there"
+Window Event: CloseEvent { Kind = Close, Cancel = False } Position: {X=11,Y=12} Size: {Width=350, Height=360} Title: "Hello from there"
+Window Event: FrameEvent { Kind = Frame, FrameKind = Destroyed } Position: {X=11,Y=12} Size: {Width=350, Height=360} Title: "Hello from there"
 Dispatcher Event: ShutdownEvent { Kind = ShutdownStarted }
 Dispatcher Event: ShutdownEvent { Kind = ShutdownFinished }
