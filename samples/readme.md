@@ -2,9 +2,9 @@
 
 Here is a list of a few samples available:
 
-- [HelloWorld](#helloworld)
-- [MultiWindow](#multiwindow)
-- [HelloDirect3D](#hellodirect3d)
+- [HelloWorld](HelloWorld/Program.cs)
+- [MultiWindow](MultiWindow/Program.cs)
+- [HelloDirect3D](HelloDirect3D/Program.cs)
 
 ## HelloWorld
 
