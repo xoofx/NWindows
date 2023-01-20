@@ -110,8 +110,8 @@ public class WindowTests
         var writer = new StringWriter();
         var thread = new Thread(() =>
             {
-                Dispatcher.Current.EnableDebug = true;
-                Dispatcher.Current.DebugOutput = writer.WriteLine;
+                //Dispatcher.Current.EnableDebug = true;
+                //Dispatcher.Current.DebugOutput = writer.WriteLine;
                 
                 Dispatcher.Current.Events.All += (dispatcher, evt) => writer.WriteLine($"Dispatcher Event: {evt}");
                 setup(writer);
