@@ -9,11 +9,15 @@ Here is a list of a few samples available:
 ## HelloWorld
 
 Simple app with a main Window and listening to some events.
-![](HelloWorldDark.png) ![](HelloWorldLight.png)
+
+![](HelloWorldDark.png)
+
+![](HelloWorldLight.png)
 
 ## MultiWindow
 
 Simple app with a main Window and popup Windows, with decorations on/off
+
 ![](MultiWindowDark.png)
 
 ## HelloDirect3D

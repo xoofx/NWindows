@@ -2,11 +2,59 @@
 
 <img align="right" width="160px" height="160px" src="https://raw.githubusercontent.com/xoofx/NWindows/main/img/NWindows.png">
 
-This is a default project description.
+NWindows is a cross-platform window creation and management library for .NET.
+
+> NWindows is aimed to provide all the infrastructure to manipulate a Window in a cross-platform manner and to interact with the input.
+>
+> It is **primarily meant to be used to create higher level application** (games, multimedia apps) or **UI Frameworks**.
+>
+> NOTICE: The first version is only supporting the Windows 10+ platform. Help wanted for other platforms! 🤗
 
 ## Features
 
-- TODO
+- Very **lightweight** with **zero-dependencies** `.NET 7+` library.
+- **GC friendly** (Zero allocation for the events).
+- Create **top-level** and **popup windows**.
+  - Support for **border-less** windows.
+  - Support for OS **theme** sync.
+- **Input support**: keyboard, mouse + cursor, text.
+- **DPI aware** and sync with OS changes.
+- **Clipboard** and **Drag&Drop** support.
+- **FullScreen** mode support.
+- **Many modifiable properties with events**
+  - Size, position, visibility, maximize/minimum size, icon, resize-able, minimize-able, maximize-able, top-most, opacity, modal...
+- **Screen** properties.
+- **Dispatcher threading infrastructure** built-in to handle System and Window messages (similar to WPF Dispatcher)
+- **Timer** support
+
+## Getting started
+
+```c#
+using NWindows;
+using NWindows.Threading;
+using System.Drawing;
+
+var mainWindow = Window.Create(new()
+{
+    Title = "Hello World",
+    StartPosition = WindowStartPosition.CenterScreen,
+    BackgroundColor = WindowSettings.Theme == WindowTheme.Light
+        ? Color.FromArgb(245, 245, 245)
+        : Color.FromArgb(30, 30, 30)
+});
+
+Dispatcher.Current.Run();
+```
+
+will create the following window on Windows:
+
+![](img/NWindows-HelloWorld.png)
+
+You will find more examples in the [sample folder](samples/readme.md).
+
+## Install
+
+NWindows is provided as a [NuGet package](https://www.nuget.org/packages/NWindows/).
 
 ## User Guide
 
