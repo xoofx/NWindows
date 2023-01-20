@@ -1,3 +1,7 @@
+// Copyright (c) Alexandre Mutel. All rights reserved.
+// Licensed under the BSD-Clause 2 license.
+// See license.txt file in the project root for full license information.
+
 using System.Text;
 using Broslyn;
 using Microsoft.CodeAnalysis;
@@ -8,9 +12,18 @@ using Microsoft.CodeAnalysis.Text;
 
 namespace NWindows.TerraFX.Interop.CodeGen;
 
+/// <summary>
+/// This program is collecting all the usage of TerraFX methods/constants/classes and copying them to
+/// the NWindows/Interop/TerraFX folder by internalizing all their usage.
+///
+/// Restrictions:
+/// - Does not copy IUnknown interfaces but only methods implementation..
+///
+/// NOTE: This code is ugly and inefficient as hell, but does the job. Improvements welcome! :)
+/// </summary>
 internal class Program
 {
-    static async Task Main(string[] args)
+    static async Task<int> Main(string[] args)
     {
         var rootFolder = Path.GetFullPath(Path.Combine(Environment.CurrentDirectory, @"../../../../.."));
         var srcFolder = Path.Combine(rootFolder, "src");
@@ -23,6 +36,7 @@ internal class Program
         }
         Directory.CreateDirectory(destFolder);
 
+
         var baseFolder = Path.GetFullPath(Path.Combine(rootFolder, @"..\TerraFX\terrafx.interop.windows\sources\"));
         var terraFXProjectPath = Path.Combine(baseFolder, @"Interop\Windows\TerraFX.Interop.Windows.csproj");
 
@@ -31,6 +45,9 @@ internal class Program
             throw new FileNotFoundException($"The TerraFX project file {terraFXProjectPath} is missing. Please check that the repository was correctly checked-out");
         }
 
+        // -------------------------------------------------------
+        // Gets the TerraFX project
+        // -------------------------------------------------------
         var resultForTerraFX = CSharpCompilationCapture.Build(terraFXProjectPath,
             properties: new Dictionary<string, string>()
             {
@@ -40,11 +57,18 @@ internal class Program
         var terraFxProject =
             resultForTerraFX.Workspace.CurrentSolution.Projects.First(x => x.Name == "TerraFX.Interop.Windows");
 
+        // -------------------------------------------------------
+        // Gets the NWindows project with the TerraFX package!
+        // -------------------------------------------------------
+
         var result = CSharpCompilationCapture.Build(pathToNWindowsProject, properties: new Dictionary<string, string>()
         {
             { "UseTerraFXPackage", "true" },
         });
-        
+
+        // -------------------------------------------------------
+        // Modify the NWindows project to reference the TerraFX project.
+        // -------------------------------------------------------
         var workspace = result.Workspace;
         var solution = workspace.CurrentSolution;
 
@@ -70,15 +94,17 @@ internal class Program
         projectNWindows = projectNWindows.RemoveMetadataReference(referenceToRemove);
         projectNWindows = projectNWindows.AddProjectReference(new ProjectReference(newTerraFxProject.Id));
 
-        //var compilationTerraFx = (await newTerraFxProject.GetCompilationAsync())!;
-        //CheckErrors(compilationTerraFx);
-
-        // Compile the project
+        // -------------------------------------------------------
+        // Compile the NWindows project
+        // -------------------------------------------------------
         var compilation = (await projectNWindows.GetCompilationAsync())!;
         CheckErrors(compilation!);
 
         var terraFXCompilation = compilation.References.OfType<CompilationReference>().First().Compilation;
-
+        
+        // -------------------------------------------------------
+        // Extract all TerraFX usage from NWindows
+        // -------------------------------------------------------
         var noDuplicates = new HashSet<ISymbol>(SymbolEqualityComparer.Default);
         var listOfSymbolsToVisit = new Stack<ISymbol>();
         var symbolsToKeep = new HashSet<ISymbol>(SymbolEqualityComparer.Default);
@@ -120,16 +146,69 @@ internal class Program
             }
         }
 
+        Console.WriteLine();
+
+        Console.WriteLine("---------------------------");
+        Console.WriteLine("All TerraFX Transitive Symbols used");
+        Console.WriteLine("---------------------------");
+        foreach (var symbol in symbolsToKeep.OrderBy(x => x.Name))
+        {
+            Console.WriteLine($"--> {symbol.Kind} {symbol}");
+        }
+
+        var syntaxNodeList = new HashSet<SyntaxNode>();
+        foreach (var symbol in symbolsToKeep)
+        {
+            foreach (var decl in symbol.DeclaringSyntaxReferences)
+            {
+                KeepSyntaxNode(decl.GetSyntax(), syntaxNodeList);
+            }
+        }
+
+        Console.WriteLine("---------------------------");
+        Console.WriteLine("Generating code");
+        Console.WriteLine("---------------------------");
+
+        var removeUnusedNodes = new RemoveUnusedNodes(terraFXCompilation, syntaxNodeList, symbolsToKeep);
+        var syntaxTrees = new HashSet<SyntaxTree>(syntaxNodeList.Select(x => x.SyntaxTree));
+
+        var newTrees = new List<SyntaxTree>();
+        foreach (var syntaxTree in syntaxTrees)
+        {
+            var newNode = (CSharpSyntaxNode?) removeUnusedNodes.Visit(syntaxTree.GetRoot());
+            if (newNode != null)
+            {
+                var newSyntaxTree = CSharpSyntaxTree.Create(newNode);
+                newTrees.Add(newSyntaxTree);
+                Console.WriteLine($"Extracting code to {syntaxTree.FilePath}");
+
+                var newFilePath = Path.Combine(destFolder, syntaxTree.FilePath.Substring(baseFolder.Length));
+
+                var folder = Path.GetDirectoryName(newFilePath);
+                if (!Directory.Exists(folder))
+                {
+                    Directory.CreateDirectory(folder);
+                }
+
+                File.WriteAllText(newFilePath, newSyntaxTree.ToString());
+            }
+        }
+
+        // end of main
+        return 0;
+
+        // Collect property/method/fields usage for a symbol
         void ProcessSymbol(ISymbol symbol)
         {
             var visited = new HashSet<ISymbol>(SymbolEqualityComparer.Default);
             ProcessSymbolRecurse(symbol, visited);
         }
 
+        // Collect property/method/fields usage for a symbol (recursively)
         void ProcessSymbolRecurse(ISymbol symbol, HashSet<ISymbol> symbolsVisited)
         {
             if (!symbolsVisited.Add(symbol)) return;
-            
+
             if (symbol is IPropertySymbol || symbol is IMethodSymbol || symbol is IFieldSymbol)
             {
                 if (IsTerraFX(symbol))
@@ -206,57 +285,6 @@ internal class Program
             {
                 //ProcessSymbol(pointerType.PointedAtType);
                 //
-            }
-        }
-
-        Console.WriteLine();
-
-        Console.WriteLine("---------------------------");
-        Console.WriteLine("All TerraFX Transitive Symbols used");
-        Console.WriteLine("---------------------------");
-        foreach (var symbol in symbolsToKeep.OrderBy(x => x.Name))
-        {
-            Console.WriteLine($"--> {symbol.Kind} {symbol}");
-        }
-
-        var syntaxNodeList = new HashSet<SyntaxNode>();
-        foreach (var symbol in symbolsToKeep)
-        {
-            foreach (var decl in symbol.DeclaringSyntaxReferences)
-            {
-                KeepSyntaxNode(decl.GetSyntax(), syntaxNodeList);
-            }
-        }
-
-        Console.WriteLine("---------------------------");
-        Console.WriteLine("Generating code");
-        Console.WriteLine("---------------------------");
-
-        var removeUnusedNodes = new RemoveUnusedNodes(terraFXCompilation, syntaxNodeList, symbolsToKeep);
-        var syntaxTrees = new HashSet<SyntaxTree>(syntaxNodeList.Select(x => x.SyntaxTree));
-
-        var newTrees = new List<SyntaxTree>();
-        foreach (var syntaxTree in syntaxTrees)
-        {
-            var newNode = (CSharpSyntaxNode?) removeUnusedNodes.Visit(syntaxTree.GetRoot());
-            if (newNode != null)
-            {
-                var newSyntaxTree = CSharpSyntaxTree.Create(newNode);
-                newTrees.Add(newSyntaxTree);
-                Console.WriteLine("--------------------------------------------------");
-                Console.WriteLine($"{syntaxTree.FilePath}");
-                Console.WriteLine("--------------------------------------------------");
-                Console.WriteLine(newSyntaxTree);
-
-                var newFilePath = Path.Combine(destFolder, syntaxTree.FilePath.Substring(baseFolder.Length));
-
-                var folder = Path.GetDirectoryName(newFilePath);
-                if (!Directory.Exists(folder))
-                {
-                    Directory.CreateDirectory(folder);
-                }
-
-                File.WriteAllText(newFilePath, newSyntaxTree.ToString());
             }
         }
 
@@ -339,7 +367,9 @@ internal class Program
         }
     }
 
-
+    /// <summary>
+    /// Remove unused syntax nodes based on usage.
+    /// </summary>
     private class RemoveUnusedNodes : CSharpSyntaxRewriter
     {
         private readonly Compilation _compilation;
@@ -611,6 +641,9 @@ internal class Program
         }
     }
 
+    /// <summary>
+    /// Collect all the TerraFX symbols used by a specified syntax node.
+    /// </summary>
     private class SymbolCollector : CSharpSyntaxWalker
     {
         private readonly SemanticModel _semanticModel;
@@ -628,11 +661,6 @@ internal class Program
             // Don't collect symbols from comments
             if (node is XmlNodeSyntax) return;
             if (node is CrefSyntax) return;
-
-            if (node is ArgumentSyntax castExpr && node.ToString().Contains("CREATESTRUCTW"))
-            {
-                var test1 = _semanticModel.GetConversion(node);
-            }
 
             // NOTE: _semanticModel.GetConversion doesn't catch cast to void* that are user-defined implicit
             // so we use operation here that seems to better handle this
