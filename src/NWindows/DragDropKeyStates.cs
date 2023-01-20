@@ -2,6 +2,9 @@
 // Licensed under the BSD-Clause 2 license.
 // See license.txt file in the project root for full license information.
 
+// The MIT License (MIT) Copyright(c) .NET Foundation and Contributors All rights reserved.
+// Code extracted from WPF with the following license https://github.com/dotnet/wpf/blob/main/LICENSE.TXT
+
 using System;
 
 namespace NWindows;

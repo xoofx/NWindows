@@ -3,6 +3,9 @@ using System.Runtime.ExceptionServices;
 
 namespace NWindows.Threading;
 
+/// <summary>
+/// A frame used to implement a message loop in a <see cref="Dispatcher"/>.
+/// </summary>
 public class DispatcherFrame : DispatcherObject
 {
     private readonly bool _exitOnShutdown;
@@ -10,16 +13,28 @@ public class DispatcherFrame : DispatcherObject
     private bool _entered;
     private ExceptionDispatchInfo? _pendingException;
 
+    /// <summary>
+    /// Creates a new instance of this frame.
+    /// </summary>
+    /// <param name="dispatcher">The associated dispatcher.</param>
     public DispatcherFrame(Dispatcher dispatcher) : this(dispatcher, true)
     {
     }
 
+    /// <summary>
+    /// Creates a new instance of this frame.
+    /// </summary>
+    /// <param name="dispatcher">The associated dispatcher.</param>
+    /// <param name="exitOnShutdown"><c>true</c> to force exit when this frame is finishing.</param>
     public DispatcherFrame(Dispatcher dispatcher, bool exitOnShutdown) : base(dispatcher)
     {
         _exitOnShutdown = exitOnShutdown;
         _continue = true;
     }
 
+    /// <summary>
+    /// Gets or sets a boolean indicating that this frame should continue the loop.
+    /// </summary>
     public bool Continue
     {
         get
@@ -73,9 +88,16 @@ public class DispatcherFrame : DispatcherObject
         pendingException?.Throw();
     }
 
+    /// <summary>
+    /// A callback called when entering the frame.
+    /// </summary>
     protected virtual void Enter()
     {
     }
+
+    /// <summary>
+    /// A callback called when leaving the frame.
+    /// </summary>
     protected virtual void Leave()
     {
     }

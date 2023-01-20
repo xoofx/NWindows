@@ -5,12 +5,17 @@
 namespace NWindows.Events;
 
 /// <summary>
-/// A frame event change.
+/// A kind of change for a <see cref="SystemEvent"/>.
 /// </summary>
-public record FrameEvent() : WindowEvent(WindowEventKind.Frame)
+public enum SystemChangeKind
 {
     /// <summary>
-    /// Gets the kind of frame event change.
+    /// No changes.
     /// </summary>
-    public FrameChangeKind ChangeKind { get; set; }
+    None = 0,
+
+    /// <summary>
+    /// Screens changed (activated, deactivated, resolution changed...)
+    /// </summary>
+    ScreenChanged,
 }

@@ -16,7 +16,13 @@ public abstract class InputDevice : DispatcherObject
         Manager = manager;
     }
 
+    /// <summary>
+    /// Is this device active.
+    /// </summary>
     public abstract bool IsActive { get; }
-
+    
+    /// <summary>
+    /// Gets the associated input manager.
+    /// </summary>
     public InputManager Manager { get; }
 }

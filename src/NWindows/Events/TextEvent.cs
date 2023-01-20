@@ -6,7 +6,13 @@ using System.Text;
 
 namespace NWindows.Events;
 
+/// <summary>
+/// A text event that provide the interpreted visual character from a keyboard.
+/// </summary>
 public record TextEvent() : WindowEvent(WindowEventKind.Text)
 {
-    public Rune Rune;
+    /// <summary>
+    /// Gets the <see cref="Rune"/> character associated with the keyboard events.
+    /// </summary>
+    public Rune Rune { get; set; }
 }

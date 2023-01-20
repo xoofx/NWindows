@@ -6,6 +6,9 @@ using System.Drawing;
 
 namespace NWindows.Input;
 
+/// <summary>
+/// A class to interact with the mouse.
+/// </summary>
 public static class Mouse
 {
     /// <summary>

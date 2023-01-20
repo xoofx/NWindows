@@ -6,6 +6,9 @@ using System;
 
 namespace NWindows.Input;
 
+/// <summary>
+/// An flag enum that provides the modifier keys.
+/// </summary>
 [Flags]
 public enum ModifierKeys
 {

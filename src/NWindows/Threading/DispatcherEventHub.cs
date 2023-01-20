@@ -6,6 +6,9 @@ using NWindows.Threading.Events;
 
 namespace NWindows.Threading;
 
+/// <summary>
+/// This class provides event handlers for the various events published by a <see cref="Dispatcher"/>.
+/// </summary>
 public sealed class DispatcherEventHub : DispatcherObject
 {
     private DispatcherEventHandler? _all;
@@ -19,6 +22,9 @@ public sealed class DispatcherEventHub : DispatcherObject
     {
     }
 
+    /// <summary>
+    /// Adds or removes an event handler for all Dispatcher events published.
+    /// </summary>
     public event DispatcherEventHandler All
     {
         add
@@ -33,6 +39,9 @@ public sealed class DispatcherEventHub : DispatcherObject
         }
     }
 
+    /// <summary>
+    /// Adds or removes an event handler for idle events published.
+    /// </summary>
     public event IdleEventHandler Idle
     {
         add
@@ -47,7 +56,9 @@ public sealed class DispatcherEventHub : DispatcherObject
         }
     }
 
-
+    /// <summary>
+    /// Adds or removes an event handler for shutdown started events published.
+    /// </summary>
     public event ShutdownEventHandler ShutdownStarted
     {
         add
@@ -62,6 +73,9 @@ public sealed class DispatcherEventHub : DispatcherObject
         }
     }
 
+    /// <summary>
+    /// Adds or removes an event handler for shutdown finished events published.
+    /// </summary>
     public event ShutdownEventHandler ShutdownFinished
     {
         add
@@ -76,6 +90,9 @@ public sealed class DispatcherEventHub : DispatcherObject
         }
     }
 
+    /// <summary>
+    /// Adds or removes an event handler for filtering unhandled exceptions.
+    /// </summary>
     public event UnhandledExceptionFilterEventHandler UnhandledExceptionFilter
     {
         add
@@ -90,6 +107,9 @@ public sealed class DispatcherEventHub : DispatcherObject
         }
     }
 
+    /// <summary>
+    /// Adds or removes an event handler for handling unhandled exceptions.
+    /// </summary>
     public event UnhandledExceptionEventHandler UnhandledException
     {
         add
@@ -104,6 +124,9 @@ public sealed class DispatcherEventHub : DispatcherObject
         }
     }
 
+    /// <summary>
+    /// Clears all the event handlers.
+    /// </summary>
     public void Clear()
     {
         VerifyAccess();
@@ -138,13 +161,38 @@ public sealed class DispatcherEventHub : DispatcherObject
         }
     }
 
+    /// <summary>
+    /// Handle for dispatcher events.
+    /// </summary>
+    /// <param name="dispatcher">The window that published this event.</param>
+    /// <param name="evt">The associated event.</param>
     public delegate void DispatcherEventHandler(Dispatcher dispatcher, DispatcherEvent evt);
 
+    /// <summary>
+    /// Handle for idle events.
+    /// </summary>
+    /// <param name="dispatcher">The window that published this event.</param>
+    /// <param name="evt">The associated event.</param>
     public delegate void IdleEventHandler(Dispatcher dispatcher, IdleEvent evt);
 
+    /// <summary>
+    /// Handle for filtering unhandled exception events.
+    /// </summary>
+    /// <param name="dispatcher">The window that published this event.</param>
+    /// <param name="evt">The associated event.</param>
     public delegate void UnhandledExceptionFilterEventHandler(Dispatcher dispatcher, UnhandledExceptionFilterEvent evt);
 
+    /// <summary>
+    /// Handle for unhandled exception handler events.
+    /// </summary>
+    /// <param name="dispatcher">The window that published this event.</param>
+    /// <param name="evt">The associated event.</param>
     public delegate void UnhandledExceptionEventHandler(Dispatcher dispatcher, UnhandledExceptionEvent evt);
 
+    /// <summary>
+    /// Handle for shutdown events events.
+    /// </summary>
+    /// <param name="dispatcher">The window that published this event.</param>
+    /// <param name="evt">The associated event.</param>
     public delegate void ShutdownEventHandler(Dispatcher dispatcher, ShutdownEvent evt);
 }

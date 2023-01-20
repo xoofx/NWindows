@@ -10,6 +10,9 @@ using NWindows.Threading;
 
 namespace NWindows;
 
+/// <summary>
+/// The Window class associated with a native Window.
+/// </summary>
 public abstract class Window : DispatcherObject, INativeWindow
 {
     // The following events are cached per Window to avoid allocations
@@ -35,93 +38,234 @@ public abstract class Window : DispatcherObject, INativeWindow
         _textEvent = new TextEvent();
     }
 
+    /// <summary>
+    /// Gets the hub for the events attached to this Window.
+    /// </summary>
     public WindowEventHub Events { get; }
 
+    /// <summary>
+    /// Gets the native handle associated to this window. This is platform dependent (see remarks).
+    /// </summary>
+    /// <remarks>
+    /// - On Windows: This handle is a HWND.
+    /// </remarks>
     public IntPtr Handle { get; protected set; }
 
+    /// <summary>
+    /// Gets the kind of this window.
+    /// </summary>
     public WindowKind Kind { get; protected set; }
 
-    public abstract bool HasDecorations { get; set; }
+    /// <summary>
+    /// Gets or sets a boolean indicating if the window has default decorations (title caption, resize grips, minimize/maximize/close buttons).
+    /// </summary>
+    public abstract bool Decorations { get; set; }
 
+    /// <summary>
+    /// Gets or sets the DPI associated to this window.
+    /// </summary>
+    /// <remarks>
+    /// In order to manually override the system DPI, you must set the <see cref="DpiMode"/> to manual.
+    /// </remarks>
     public abstract Dpi Dpi { get; set; }
-    
+
+    /// <summary>
+    /// Gets or sets the DPI mode. Default is auto (in sync with the OS).
+    /// </summary>
     public abstract DpiMode DpiMode { get; set; }
-    
+
+    /// <summary>
+    /// Gets or sets how the theme of the Window is synced. Default is auto.
+    /// </summary>
     public abstract WindowThemeSyncMode ThemeSyncMode { get; set; }
 
+    /// <summary>
+    /// Gets or sets the background color.
+    /// </summary>
     public abstract Color BackgroundColor { get; set; }
 
+    /// <summary>
+    /// Gets or sets a boolean indicating that this window is enabled or disabled.
+    /// </summary>
     public abstract bool Enable { get; set; }
 
+    /// <summary>
+    /// Gets a boolean indicating that this Windows has been disposed.
+    /// </summary>
     public abstract bool IsDisposed { get; }
 
+    /// <summary>
+    /// Gets or sets the title of this window.
+    /// </summary>
     public abstract string Title { get; set; }
 
+    /// <summary>
+    /// Gets or sets the size of this window. The size is in logical value according to the <see cref="Dpi"/> of this window.
+    /// </summary>
     public abstract SizeF Size { get; set; }
 
+    /// <summary>
+    /// Gets the size in pixels of this window.
+    /// </summary>
     public Size SizeInPixels => Dpi.LogicalToPixel(Size);
 
+    /// <summary>
+    /// Gets or sets the logical client size (without the decorations).
+    /// </summary>
+    /// <remarks>
+    /// If the window does not have decoration, the client size is equal to the <see cref="Size"/> of this window.
+    /// </remarks>
     public abstract SizeF ClientSize { get; set; }
-    
+
+    /// <summary>
+    /// Gets or sets the virtual position in pixels of this window.
+    /// </summary>
     public abstract Point Position { get; set; }
 
+    /// <summary>
+    /// Gets or sets a boolean indicating if this window is visible or not.
+    /// </summary>
     public abstract bool Visible { get; set; }
 
+    /// <summary>
+    /// Gets or sets a boolean indicating if this window accepts drag and drop or not.
+    /// </summary>
     public abstract bool DragDrop { get; set; }
 
+    /// <summary>
+    /// Gets or sets a boolean indicating if this window can be resized.
+    /// </summary>
     public abstract bool Resizeable { get; set; }
 
+    /// <summary>
+    /// Gets or sets a boolean indicating if this window can be maximized.
+    /// </summary>
     public abstract bool Maximizeable { get; set; }
 
+    /// <summary>
+    /// Gets or sets a boolean indicating if this window can be minimized.
+    /// </summary>
     public abstract bool Minimizeable { get; set; }
 
+    /// <summary>
+    /// Gets the parent window. Is not null if <see cref="Kind"/> is <see cref="WindowKind.TopLevel"/>.
+    /// </summary>
     public abstract INativeWindow? Parent { get; }
-    
+
+    /// <summary>
+    /// Gets or sets the state of the window (normal, minimized, maximized, fullscreen).
+    /// </summary>
     public abstract WindowState State { get; set; }
 
+    /// <summary>
+    /// Gets or sets the opacity of this window.
+    /// </summary>
     public abstract float Opacity { get; set; }
 
+    /// <summary>
+    /// Gets a boolean indicating if this window is a top level window.
+    /// </summary>
     public bool TopLevel => Kind == WindowKind.TopLevel;
 
+    /// <summary>
+    /// Gets or sets a boolean indicating that this window is top most.
+    /// </summary>
     public abstract bool TopMost { get; set; }
 
+    /// <summary>
+    /// Brings the focus to this window.
+    /// </summary>
     public abstract void Focus();
 
+    /// <summary>
+    /// Activates this window.
+    /// </summary>
     public abstract void Activate();
 
+    /// <summary>
+    /// Closes this window.
+    /// </summary>
+    /// <returns>If the window was successfully closed.</returns>
     public abstract bool Close();
 
+    /// <summary>
+    /// Gets or sets the logical maximum size of this window.
+    /// </summary>
     public abstract SizeF MinimumSize { get; set; }
 
+    /// <summary>
+    /// Gets or sets the logical minimum size of this window.
+    /// </summary>
     public abstract SizeF MaximumSize { get; set; }
 
+    /// <summary>
+    /// Gets or sets a boolean indicating if this window is modal or not.
+    /// </summary>
     public abstract bool Modal { get; set; }
 
+    /// <summary>
+    /// Gets or sets a boolean indicating if the icon of window is visible on the task bar.
+    /// </summary>
     public abstract bool ShowInTaskBar { get; set; }
 
+    /// <summary>
+    /// Converts a screen position to a position within the client area of the window.
+    /// </summary>
+    /// <param name="position">A screen position.</param>
+    /// <returns>A logical position in the client area.</returns>
     public abstract PointF ScreenToClient(Point position);
 
+    /// <summary>
+    /// Converts a logical position in the client area to a pixel position on the screen.
+    /// </summary>
+    /// <param name="position">A logical position in the client area.</param>
+    /// <returns>The equivalent screen position.</returns>
     public abstract Point ClientToScreen(PointF position);
 
+    /// <summary>
+    /// Gets the associated screen with this window.
+    /// </summary>
+    /// <returns></returns>
     public abstract Screen? GetScreen();
 
+    /// <summary>
+    /// Gets a screen associated to this window or the primary screen if no screen is associated.
+    /// </summary>
+    /// <returns></returns>
     public Screen? GetScreenOrPrimary() => GetScreen() ?? Screen.Primary;
 
+    /// <summary>
+    /// Centers this window according to its parent window. If this window does not have a parent, it will be centered to the screen.
+    /// </summary>
     public abstract void CenterToParent();
 
+    /// <summary>
+    /// Centers this window according to the screen.
+    /// </summary>
     public abstract void CenterToScreen();
 
+    /// <summary>
+    /// Sets the icon of this window.
+    /// </summary>
+    /// <param name="icon">The icon to set.</param>
     public abstract void SetIcon(Icon icon);
-    
+
+    /// <summary>
+    /// Show this window as a dialog.
+    /// </summary>
+    /// <remarks>>
+    /// The window must be a <see cref="WindowKind.Popup"/> window.
+    /// </remarks>
     public void ShowDialog()
     {
         VerifyAccess();
         VerifyPopup();
 
+        Visible = true;
         var frame = new ModalFrame(Dispatcher, this);
         WindowEventHub.FrameEventHandler destroyFrame = (Window window, FrameEvent evt) =>
         {
-            frame.Continue = evt.FrameKind != FrameEventKind.Destroyed;
+            frame.Continue = evt.ChangeKind != FrameChangeKind.Destroyed;
         };
 
         Events.Frame += destroyFrame;
@@ -136,6 +280,12 @@ public abstract class Window : DispatcherObject, INativeWindow
         }
     }
 
+    /// <summary>
+    /// Creates a window with the specified options.
+    /// </summary>
+    /// <param name="options">The options of the window.</param>
+    /// <returns>The window created.</returns>
+    /// <exception cref="PlatformNotSupportedException">If the platform is not supported.</exception>
     public static Window Create(WindowCreateOptions options)
     {
         options.Verify();
@@ -165,7 +315,7 @@ public abstract class Window : DispatcherObject, INativeWindow
 
     internal void VerifyNotChild()
     {
-        if (Kind == WindowKind.Child) throw new InvalidOperationException("Cannot perform this operation on a child window.");
+        if (Kind == WindowKind.Win32Child) throw new InvalidOperationException("Cannot perform this operation on a child window.");
     }
     
     internal void OnWindowEvent(WindowEvent evt)
@@ -173,9 +323,9 @@ public abstract class Window : DispatcherObject, INativeWindow
         Events.OnWindowEvent(this, evt);
     }
 
-    internal void OnFrameEvent(FrameEventKind frameEventKind)
+    internal void OnFrameEvent(FrameChangeKind frameChangeKind)
     {
-        _frameEvent.FrameKind = frameEventKind; 
+        _frameEvent.ChangeKind = frameChangeKind; 
         OnWindowEvent(_frameEvent);
     }
     internal bool OnPaintEvent(in RectangleF bounds)

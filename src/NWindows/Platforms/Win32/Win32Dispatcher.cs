@@ -444,9 +444,9 @@ internal unsafe class Win32Dispatcher : Dispatcher
         }
     }
 
-    public void OnSystemEvent(SystemEventKind systemEventKind)
+    public void OnSystemEvent(SystemChangeKind systemChangeKind)
     {
-        _systemEvent.SubKind = systemEventKind;
+        _systemEvent.ChangeKind = systemChangeKind;
         foreach (var window in _windows)
         {
             window.OnWindowEvent(_systemEvent);

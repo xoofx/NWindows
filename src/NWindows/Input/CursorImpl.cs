@@ -4,6 +4,9 @@
 
 namespace NWindows.Input;
 
+/// <summary>
+/// Internal Cursor abstract class that requires a platform dependent implementation.
+/// </summary>
 internal abstract class CursorImpl
 {
     public abstract Cursor GetCursor(CursorType cursorType);

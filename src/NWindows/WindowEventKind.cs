@@ -4,17 +4,59 @@
 
 namespace NWindows;
 
+/// <summary>
+/// The kind of <see cref="WindowEvent"/>.
+/// </summary>
 public enum WindowEventKind
 {
-    Undefined,
+    /// <summary>
+    /// Undefined
+    /// </summary>
+    Undefined = 0,
+
+    /// <summary>
+    /// A system event.
+    /// </summary>
     System,
+
+    /// <summary>
+    /// A frame event.
+    /// </summary>
     Frame,
+
+    /// <summary>
+    /// A paint event.
+    /// </summary>
     Paint,
+
+    /// <summary>
+    /// A HitTest event.
+    /// </summary>
     HitTest,
+
+    /// <summary>
+    /// A Keyboard event.
+    /// </summary>
     Keyboard,
+
+    /// <summary>
+    /// A mouse event.
+    /// </summary>
     Mouse,
+
+    /// <summary>
+    /// A close event.
+    /// </summary>
     Close,
+
+    /// <summary>
+    /// A text event.
+    /// </summary>
     Text,
+
+    /// <summary>
+    /// A drag and drop event.
+    /// </summary>
     DragDrop,
 
     // TODO: add touch, gesture, clipboard, drag and drop

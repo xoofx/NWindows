@@ -6,6 +6,9 @@ using System.Drawing;
 
 namespace NWindows;
 
+/// <summary>
+/// Internal WindowSettings abstract class that requires a platform dependent implementation.
+/// </summary>
 internal abstract class WindowSettingsImpl
 {
     public abstract WindowTheme Theme { get; }

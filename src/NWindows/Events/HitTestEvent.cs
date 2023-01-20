@@ -6,15 +6,30 @@ using System.Drawing;
 
 namespace NWindows.Events;
 
+/// <summary>
+/// An event triggered for a window that has no decorations to specify which part of the window the moues point to.
+/// </summary>
 public record HitTestEvent() : WindowEvent(WindowEventKind.HitTest)
 {
+    /// <summary>
+    /// Gets the position of the mouse within the window.
+    /// </summary>
     public PointF MousePosition;
 
+    /// <summary>
+    /// Gets the size of the window.
+    /// </summary>
     public SizeF WindowSize;
 
-    public HitTest Result;
+    /// <summary>
+    /// Gets or sets the result of the hit-test. Must be set by the handler.
+    /// </summary>
+    public HitTest Result { get; set; }
 
-    public bool Handled;
+    /// <summary>
+    /// Gets or sets a value indicating if the hit-test was handled.
+    /// </summary>
+    public bool Handled { get; set; }
 
     // TODO: ToText to HitTest
 }

@@ -24,14 +24,12 @@ public abstract partial class Dispatcher
     private readonly UnhandledExceptionFilterEvent _defaultUnhandledExceptionFilterEvent;
     private readonly UnhandledExceptionEvent _defaultUnhandledExceptionEvent;
 
-    private void VerifyRunning()
-    {
-        if (_frames.Count == 0)
-        {
-            throw new InvalidOperationException("Hub is not running");
-        }
-    }
-    
+    /// <summary>
+    /// Invokes synchronously the specified action on this dispatcher instance.
+    /// </summary>
+    /// <param name="action">The action to invoke on this dispatcher.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <exception cref="ArgumentNullException">If the action is null.</exception>
     public void Invoke(Action action, CancellationToken? cancellationToken = null)
     {
         if (action == null) throw new ArgumentNullException(nameof(action));
@@ -56,6 +54,12 @@ public abstract partial class Dispatcher
         }
     }
 
+    /// <summary>
+    /// Invokes synchronously the specified function on this dispatcher instance.
+    /// </summary>
+    /// <param name="func">The function to invoke on this dispatcher.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <exception cref="ArgumentNullException">If the function is null.</exception>
     public T Invoke<T>(Func<T> func, CancellationToken? cancellationToken = null)
     {
         if (func == null) throw new ArgumentNullException(nameof(func));
@@ -82,12 +86,24 @@ public abstract partial class Dispatcher
         return task.Result;
     }
 
+    /// <summary>
+    /// Invokes asynchronously the specified action on this dispatcher instance without waiting its completion.
+    /// </summary>
+    /// <param name="action">The action to invoke on this dispatcher.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <exception cref="ArgumentNullException">If the action is null.</exception>
     public void InvokeAsyncAndForget(Action action, CancellationToken? cancellationToken = null)
     {
         if (action == null) throw new ArgumentNullException(nameof(action));
         QueueDispatcherJob(action, cancellationToken);
     }
 
+    /// <summary>
+    /// Invokes asynchronously the specified action on this dispatcher instance.
+    /// </summary>
+    /// <param name="action">The action to invoke on this dispatcher.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <exception cref="ArgumentNullException">If the action is null.</exception>
     public Task InvokeAsync(Action action, CancellationToken? cancellationToken = null)
     {
         if (action == null) throw new ArgumentNullException(nameof(action));
@@ -98,6 +114,12 @@ public abstract partial class Dispatcher
         return task;
     }
 
+    /// <summary>
+    /// Invokes asynchronously the specified function on this dispatcher instance.
+    /// </summary>
+    /// <param name="func">The function to invoke on this dispatcher.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <exception cref="ArgumentNullException">If the action is null.</exception>
     public Task<T> InvokeAsync<T>(Func<T> func, CancellationToken? cancellationToken = null)
     {
         if (func == null) throw new ArgumentNullException(nameof(func));
@@ -108,15 +130,7 @@ public abstract partial class Dispatcher
         return task;
     }
 
-    private void QueueDispatcherJob(object action, CancellationToken? cancelToken = null)
-    {
-
-        var job = action is Task ? new DispatcherJob((Task)action) : new DispatcherJob((Action)action, cancelToken ?? CancellationToken.None);
-
-        _queue.Enqueue(job);
-
-        NotifyJobQueue();
-    }
+    internal abstract void NotifyJobQueue();
     
     internal void ProcessJobQueue()
     {
@@ -161,7 +175,23 @@ public abstract partial class Dispatcher
         return _defaultUnhandledExceptionFilterEvent.RequestCatch;
     }
 
-    internal abstract void NotifyJobQueue();
+    private void QueueDispatcherJob(object action, CancellationToken? cancelToken = null)
+    {
+
+        var job = action is Task ? new DispatcherJob((Task)action) : new DispatcherJob((Action)action, cancelToken ?? CancellationToken.None);
+
+        _queue.Enqueue(job);
+
+        NotifyJobQueue();
+    }
+
+    private void VerifyRunning()
+    {
+        if (_frames.Count == 0)
+        {
+            throw new InvalidOperationException("Hub is not running");
+        }
+    }
 
     private class DispatcherTaskScheduler : TaskScheduler
     {

@@ -4,6 +4,9 @@
 
 namespace NWindows.Input;
 
+/// <summary>
+/// Identifiers a key from a keyboard.
+/// </summary>
 public enum Key : ushort
 {
     /// <summary>

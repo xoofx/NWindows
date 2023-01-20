@@ -7,6 +7,9 @@ using NWindows.Threading;
 
 namespace NWindows;
 
+/// <summary>
+/// This class provides event handlers for the various events published by a <see cref="Window"/>.
+/// </summary>
 public sealed class WindowEventHub : DispatcherObject
 {
     private WindowEventHandler? _all;
@@ -19,14 +22,24 @@ public sealed class WindowEventHub : DispatcherObject
     private CloseEventHandler? _close;
     private TextEventHandler? _text;
 
+    /// <summary>
+    /// Creates a new instance of this hub associated with the current dispatcher.
+    /// </summary>
     public WindowEventHub()
     {
     }
 
+    /// <summary>
+    /// Creates a new instance of this hub associated with the specified dispatcher.
+    /// </summary>
+    /// <param name="dispatcher">The dispatcher.</param>
     public WindowEventHub(Dispatcher dispatcher) : base(dispatcher)
     {
     }
 
+    /// <summary>
+    /// Adds or removes an event handler for all Window events published.
+    /// </summary>
     public event WindowEventHandler All
     {
         add
@@ -41,6 +54,9 @@ public sealed class WindowEventHub : DispatcherObject
         }
     }
 
+    /// <summary>
+    /// Adds or removes an event handler for all mouse events published.
+    /// </summary>
     public event MouseEventHandler Mouse
     {
         add
@@ -55,6 +71,9 @@ public sealed class WindowEventHub : DispatcherObject
         }
     }
 
+    /// <summary>
+    /// Adds or removes an event handler for all frame events published.
+    /// </summary>
     public event FrameEventHandler Frame
     {
         add
@@ -69,6 +88,9 @@ public sealed class WindowEventHub : DispatcherObject
         }
     }
 
+    /// <summary>
+    /// Adds or removes an event handler for all keyboard events published.
+    /// </summary>
     public event KeyboardEventHandler Keyboard
     {
         add
@@ -83,6 +105,9 @@ public sealed class WindowEventHub : DispatcherObject
         }
     }
 
+    /// <summary>
+    /// Adds or removes an event handler for all system events published.
+    /// </summary>
     public event SystemEventHandler System
     {
         add
@@ -97,6 +122,9 @@ public sealed class WindowEventHub : DispatcherObject
         }
     }
 
+    /// <summary>
+    /// Adds or removes an event handler for all paint events published.
+    /// </summary>
     public event PaintEventHandler Paint
     {
         add
@@ -111,6 +139,9 @@ public sealed class WindowEventHub : DispatcherObject
         }
     }
 
+    /// <summary>
+    /// Adds or removes an event handler for all hittest events published.
+    /// </summary>
     public event HitTestEventHandler HitTest
     {
         add
@@ -125,6 +156,9 @@ public sealed class WindowEventHub : DispatcherObject
         }
     }
 
+    /// <summary>
+    /// Adds or removes an event handler for the close event published.
+    /// </summary>
     public event CloseEventHandler Close
     {
         add
@@ -139,6 +173,9 @@ public sealed class WindowEventHub : DispatcherObject
         }
     }
 
+    /// <summary>
+    /// Adds or removes an event handler for the text events published.
+    /// </summary>
     public event TextEventHandler Text
     {
         add
@@ -185,21 +222,66 @@ public sealed class WindowEventHub : DispatcherObject
         }
     }
 
+    /// <summary>
+    /// Handle for window events.
+    /// </summary>
+    /// <param name="window">The window that published this event.</param>
+    /// <param name="evt">The associated event.</param>
     public delegate void WindowEventHandler(Window window, WindowEvent evt);
 
+    /// <summary>
+    /// Handle for moues events.
+    /// </summary>
+    /// <param name="window">The window that published this event.</param>
+    /// <param name="evt">The associated event.</param>
     public delegate void MouseEventHandler(Window window, MouseEvent evt);
 
+    /// <summary>
+    /// Handle for frame events.
+    /// </summary>
+    /// <param name="window">The window that published this event.</param>
+    /// <param name="evt">The associated event.</param>
     public delegate void FrameEventHandler(Window window, FrameEvent evt);
 
+    /// <summary>
+    /// Handle for keyboard events.
+    /// </summary>
+    /// <param name="window">The window that published this event.</param>
+    /// <param name="evt">The associated event.</param>
     public delegate void KeyboardEventHandler(Window window, KeyboardEvent evt);
 
+    /// <summary>
+    /// Handle for system events.
+    /// </summary>
+    /// <param name="window">The window that published this event.</param>
+    /// <param name="evt">The associated event.</param>
     public delegate void SystemEventHandler(Window window, SystemEvent evt);
 
+    /// <summary>
+    /// Handle for paint events.
+    /// </summary>
+    /// <param name="window">The window that published this event.</param>
+    /// <param name="evt">The associated event.</param>
     public delegate void PaintEventHandler(Window window, PaintEvent evt);
 
+    /// <summary>
+    /// Handle for hittest events.
+    /// </summary>
+    /// <param name="window">The window that published this event.</param>
+    /// <param name="evt">The associated event.</param>
     public delegate void HitTestEventHandler(Window window, HitTestEvent evt);
 
+    /// <summary>
+    /// Handle for close events.
+    /// </summary>
+    /// <param name="window">The window that published this event.</param>
+    /// <param name="evt">The associated event.</param>
     public delegate void CloseEventHandler(Window window, CloseEvent evt);
 
+    /// <summary>
+    /// Handle for text events.
+    /// </summary>
+    /// <param name="window">The window that published this event.</param>
+    /// <param name="evt">The associated event.</param>
     public delegate void TextEventHandler(Window window, TextEvent evt);
 }

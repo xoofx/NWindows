@@ -18,10 +18,17 @@ public sealed class FileTransferList : List<string>
         Id = Guid.NewGuid();
     }
 
+    /// <summary>
+    /// A Guid associated with this transfer.
+    /// </summary>
     public Guid Id { get; internal set; }
 
+    /// <summary>
+    /// The effect associated with this list of files (e.g cut or copy or move or link).
+    /// </summary>
     public DataTransferEffects PreferredDataTransferEffects { get; set; }
 
+    /// <inheritdoc />
     public override string ToString()
     {
         var builder = new StringBuilder();

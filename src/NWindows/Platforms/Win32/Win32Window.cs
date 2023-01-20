@@ -133,7 +133,7 @@ internal unsafe class Win32Window : Window
         }
     }
 
-    public override bool HasDecorations
+    public override bool Decorations
     {
         get
         {
@@ -723,7 +723,7 @@ internal unsafe class Win32Window : Window
         // Process potential screen changes
         if (Dispatcher.TryHandleScreenChanges(hWnd, message, wParam, lParam))
         {
-            Dispatcher.OnSystemEvent(SystemEventKind.ScreenChanged);
+            Dispatcher.OnSystemEvent(SystemChangeKind.ScreenChanged);
         }
 
         if (message >= WM_MOUSEFIRST && message <= WM_MOUSELAST || message == WM_MOUSELEAVE)
@@ -760,7 +760,7 @@ internal unsafe class Win32Window : Window
             case WM_SHOWWINDOW:
                 // https://learn.microsoft.com/en-us/windows/win32/winmsg/wm-showwindow
                 _visible = (BOOL)wParam;
-                OnFrameEvent(_visible ? FrameEventKind.Shown : FrameEventKind.Hidden);
+                OnFrameEvent(_visible ? FrameChangeKind.Shown : FrameChangeKind.Hidden);
                 result = 0;
                 break;
 
@@ -775,12 +775,12 @@ internal unsafe class Win32Window : Window
                 break;
 
             case WM_SETFOCUS:
-                OnFrameEvent(FrameEventKind.FocusGained);
+                OnFrameEvent(FrameChangeKind.FocusGained);
                 result = 0;
                 break;
 
             case WM_KILLFOCUS:
-                OnFrameEvent(FrameEventKind.FocusLost);
+                OnFrameEvent(FrameChangeKind.FocusLost);
                 result = 0;
                 break;
 
@@ -801,7 +801,7 @@ internal unsafe class Win32Window : Window
 
             case WM_ENABLE:
                 _enable = (BOOL)wParam;
-                OnFrameEvent(_enable ? FrameEventKind.Enabled : FrameEventKind.Disabled);
+                OnFrameEvent(_enable ? FrameChangeKind.Enabled : FrameChangeKind.Disabled);
                 result = 0;
                 break;
 
@@ -858,7 +858,7 @@ internal unsafe class Win32Window : Window
                 break;
 
             case WM_CLIPBOARDUPDATE:
-                OnFrameEvent(FrameEventKind.ClipboardChanged);
+                OnFrameEvent(FrameChangeKind.ClipboardChanged);
                 result = 0;
                 break;
 
@@ -891,7 +891,7 @@ internal unsafe class Win32Window : Window
         if (span.SequenceEqual("ImmersiveColorSet"))
         {
             UpdateTheme();
-            OnFrameEvent(FrameEventKind.ThemeChanged);
+            OnFrameEvent(FrameChangeKind.ThemeChanged);
         }
     }
 
@@ -912,17 +912,17 @@ internal unsafe class Win32Window : Window
         var changes = styleStruct.styleNew ^ styleStruct.styleOld;
         if (wParam == GWL.GWL_STYLE)
         {
-            NotifyChangeOfStyle(changes, newStyle, WS_SIZEBOX, ref _resizeable, FrameEventKind.ResizeableChanged);
-            NotifyChangeOfStyle(changes, newStyle, WS_MAXIMIZEBOX, ref _maximizeable, FrameEventKind.MaximizeableChanged);
-            NotifyChangeOfStyle(changes, newStyle, WS_MINIMIZEBOX, ref _minimizeable, FrameEventKind.MinimizeableChanged);
+            NotifyChangeOfStyle(changes, newStyle, WS_SIZEBOX, ref _resizeable, FrameChangeKind.ResizeableChanged);
+            NotifyChangeOfStyle(changes, newStyle, WS_MAXIMIZEBOX, ref _maximizeable, FrameChangeKind.MaximizeableChanged);
+            NotifyChangeOfStyle(changes, newStyle, WS_MINIMIZEBOX, ref _minimizeable, FrameChangeKind.MinimizeableChanged);
         }
         else if (wParam == GWL.GWL_EXSTYLE)
         {
-            NotifyChangeOfStyle(changes, newStyle, WS_EX_ACCEPTFILES, ref _allowDragAndDrop, FrameEventKind.DragDropChanged);
+            NotifyChangeOfStyle(changes, newStyle, WS_EX_ACCEPTFILES, ref _allowDragAndDrop, FrameChangeKind.DragDropChanged);
         }
 
     }
-    private void NotifyChangeOfStyle(uint changes, uint newStyle, int toCheck, ref bool value, FrameEventKind changeKind)
+    private void NotifyChangeOfStyle(uint changes, uint newStyle, int toCheck, ref bool value, FrameChangeKind changeKind)
     {
         if ((changes & toCheck) != 0)
         {
@@ -1124,7 +1124,7 @@ internal unsafe class Win32Window : Window
 
         _dropTarget.UnRegister();
 
-        OnFrameEvent(FrameEventKind.Destroyed);
+        OnFrameEvent(FrameChangeKind.Destroyed);
     }
 
     private LRESULT HandleBorderLessWindowProc(HWND hWnd, uint message, WPARAM wParam, LPARAM lParam)
@@ -1319,7 +1319,7 @@ internal unsafe class Win32Window : Window
     {
         _position = new Point(createdWindow->x, createdWindow->y);
         _size = Dpi.PixelToLogical(new Size(createdWindow->cx, createdWindow->cy));
-        OnFrameEvent(FrameEventKind.Created);
+        OnFrameEvent(FrameChangeKind.Created);
     }
 
     private unsafe void HandleBorderLessNonClientCalculateClientSize(HWND hWnd, WPARAM wParam, NCCALCSIZE_PARAMS* pnCsp)
@@ -1544,19 +1544,19 @@ internal unsafe class Win32Window : Window
         if (sizeKind == SIZE_MAXIMIZED)
         {
             _state = _isFullscreen ? WindowState.FullScreen : WindowState.Maximized;
-            OnFrameEvent(_isFullscreen ? FrameEventKind.FullScreen : FrameEventKind.Maximized);
+            OnFrameEvent(_isFullscreen ? FrameChangeKind.FullScreen : FrameChangeKind.Maximized);
         }
         else if (sizeKind == SIZE_MINIMIZED)
         {
             _state = WindowState.Minimized;
-            OnFrameEvent(FrameEventKind.Minimized);
+            OnFrameEvent(FrameChangeKind.Minimized);
         }
         else if (sizeKind == SIZE_RESTORED)
         {
             if (_state != WindowState.Normal)
             {
                 _state = WindowState.Normal;
-                OnFrameEvent(FrameEventKind.Restored);
+                OnFrameEvent(FrameChangeKind.Restored);
             }
         }
     }
@@ -1584,11 +1584,11 @@ internal unsafe class Win32Window : Window
         // Notify events
         if (posChanged)
         {
-            OnFrameEvent(sizeChanged ? FrameEventKind.PositionAndSizeChanged : FrameEventKind.Moved);
+            OnFrameEvent(sizeChanged ? FrameChangeKind.PositionAndSizeChanged : FrameChangeKind.Moved);
         }
         else if (sizeChanged)
         {
-            OnFrameEvent(FrameEventKind.Resized);
+            OnFrameEvent(FrameChangeKind.Resized);
         }
     }
 
@@ -1783,7 +1783,7 @@ internal unsafe class Win32Window : Window
 
         if (notify && changed)
         {
-            OnFrameEvent(FrameEventKind.DecorationsChanged);
+            OnFrameEvent(FrameChangeKind.DecorationsChanged);
         }
     }
     private void UpdateDpi(Dpi dpi)
@@ -1791,7 +1791,7 @@ internal unsafe class Win32Window : Window
         _dpi = dpi;
         if (_dpi != dpi)
         {
-            OnFrameEvent(FrameEventKind.DpiChanged);
+            OnFrameEvent(FrameChangeKind.DpiChanged);
         }
     }
 
@@ -1809,7 +1809,7 @@ internal unsafe class Win32Window : Window
 
         if (_dpiMode != dpiMode)
         {
-            OnFrameEvent(FrameEventKind.DpiModeChanged);
+            OnFrameEvent(FrameChangeKind.DpiModeChanged);
         }
     }
 
@@ -1820,7 +1820,7 @@ internal unsafe class Win32Window : Window
 
         if (_themeSyncMode != value)
         {
-            OnFrameEvent(FrameEventKind.ThemeSyncModeChanged);
+            OnFrameEvent(FrameChangeKind.ThemeSyncModeChanged);
         }
     }
 
@@ -1841,7 +1841,7 @@ internal unsafe class Win32Window : Window
             InvalidateRect(HWnd, null, false);
             UpdateWindow(HWnd);
             SendMessage(HWnd, WM_ERASEBKGND, 0, 0);
-            OnFrameEvent(FrameEventKind.BackgroundColorChanged);
+            OnFrameEvent(FrameChangeKind.BackgroundColorChanged);
         }
     }
 
@@ -1853,7 +1853,7 @@ internal unsafe class Win32Window : Window
         }
 
         _title = title;
-        OnFrameEvent(FrameEventKind.TitleChanged);
+        OnFrameEvent(FrameChangeKind.TitleChanged);
     }
 
     private void UpdateSize(SizeF value)
@@ -2028,14 +2028,14 @@ internal unsafe class Win32Window : Window
         }
 
         _opacity = value;
-        OnFrameEvent(FrameEventKind.OpacityChanged);
+        OnFrameEvent(FrameChangeKind.OpacityChanged);
     }
 
     private void UpdateTopMost(bool value)
     {
         SetWindowPos(HWnd, value ? HWND_TOPMOST : HWND_NOTOPMOST, 0, 0, 0, 0, SWP.SWP_NOMOVE | SWP.SWP_NOSIZE);
         _topMost = value;
-        OnFrameEvent(FrameEventKind.TopMostChanged);
+        OnFrameEvent(FrameChangeKind.TopMostChanged);
     }
 
     private void UpdateMinimumSize(SizeF value, bool updateWindowSize = true, bool notify = true)
@@ -2073,7 +2073,7 @@ internal unsafe class Win32Window : Window
 
         if (notify)
         {
-            OnFrameEvent(FrameEventKind.MinimumSizeChanged);
+            OnFrameEvent(FrameChangeKind.MinimumSizeChanged);
         }
     }
 
@@ -2107,7 +2107,7 @@ internal unsafe class Win32Window : Window
 
         if (notify)
         {
-            OnFrameEvent(FrameEventKind.MaximumSizeChanged);
+            OnFrameEvent(FrameChangeKind.MaximumSizeChanged);
         }
     }
 
@@ -2119,7 +2119,7 @@ internal unsafe class Win32Window : Window
         parentWindow.Enable = !modal;
 
         _modal = modal;
-        OnFrameEvent(FrameEventKind.ModalChanged);
+        OnFrameEvent(FrameChangeKind.ModalChanged);
     }
 
     private void UpdateShowInTaskBar(bool value)
@@ -2152,7 +2152,7 @@ internal unsafe class Win32Window : Window
         }
 
         _showInTaskBar = value;
-        OnFrameEvent(FrameEventKind.ShowInTaskBarChanged);
+        OnFrameEvent(FrameChangeKind.ShowInTaskBarChanged);
     }
 
     private void SwitchToFullScreen()
@@ -2235,7 +2235,7 @@ internal unsafe class Win32Window : Window
         int width;
         int height;
 
-        if (options.Kind == WindowKind.Child)
+        if (options.Kind == WindowKind.Win32Child)
         {
             var parentWindowHandle = options.Parent!.Handle;
 
@@ -2360,7 +2360,7 @@ internal unsafe class Win32Window : Window
             // Check for clipboard events
             AddClipboardFormatListener(HWnd);
 
-            if (Kind != WindowKind.Child)
+            if (Kind != WindowKind.Win32Child)
             {
                 switch (options.StartPosition)
                 {
@@ -2411,7 +2411,7 @@ internal unsafe class Win32Window : Window
                 style |= WS_POPUP | WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU;
                 break;
 
-            case WindowKind.Child:
+            case WindowKind.Win32Child:
                 style |= WS_CHILD;
                 break;
         }
@@ -2422,7 +2422,7 @@ internal unsafe class Win32Window : Window
             styleEx |= WS_EX_NOREDIRECTIONBITMAP;
         }
         
-        if (options.Kind != WindowKind.Child)
+        if (options.Kind != WindowKind.Win32Child)
         {
             if (options.Resizable)
             {

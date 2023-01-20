@@ -15,6 +15,9 @@ public abstract class KeyboardDevice : InputDevice
     {
     }
 
+    /// <summary>
+    /// Gets the modifier keys pressed.
+    /// </summary>
     public ModifierKeys Modifiers
     {
         get
@@ -39,24 +42,44 @@ public abstract class KeyboardDevice : InputDevice
         }
     }
 
+    /// <summary>
+    /// Gets the state of the specified key.
+    /// </summary>
+    /// <param name="key">The key.</param>
+    /// <returns>The state of the specified key.</returns>
     public KeyStates GetKeyStates(Key key)
     {
         ValidateKey(key);
         return GetKeyStatesFromSystem(key);
     }
 
+    /// <summary>
+    /// Gets a boolean indicating whether the specified key is pressed down.
+    /// </summary>
+    /// <param name="key">The key to check.</param>
+    /// <returns><c>true</c> if the specified key is pressed down; otherwise <c>false</c>.</returns>
     public bool IsKeyDown(Key key)
     {
         ValidateKey(key);
         return IsKeyDownInternal(key);
     }
 
+    /// <summary>
+    /// Gets a boolean indicating whether the specified key is toggled.
+    /// </summary>
+    /// <param name="key">The key to check.</param>
+    /// <returns><c>true</c> if the specified key is toggled down; otherwise <c>false</c>.</returns>
     public bool IsKeyToggled(Key key)
     {
         ValidateKey(key);
         return IsKeyToggledInternal(key);
     }
 
+    /// <summary>
+    /// Gets a boolean indicating whether the specified key is pressed up.
+    /// </summary>
+    /// <param name="key">The key to check.</param>
+    /// <returns><c>true</c> if the specified key is pressed up; otherwise <c>false</c>.</returns>
     public bool IsKeyUp(Key key)
     {
         ValidateKey(key);

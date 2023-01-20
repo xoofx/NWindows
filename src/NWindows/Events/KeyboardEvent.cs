@@ -6,28 +6,64 @@ using NWindows.Input;
 
 namespace NWindows.Events;
 
+/// <summary>
+/// A keyboard event.
+/// </summary>
 public record KeyboardEvent() : WindowEvent(WindowEventKind.Keyboard)
 {
-    public Key Key;
+    /// <summary>
+    /// Gets the key.
+    /// </summary>
+    public Key Key { get; set; }
 
-    public KeyStates State;
+    /// <summary>
+    /// Gets the states of the key.
+    /// </summary>
+    public KeyStates State { get; set; }
 
-    public ModifierKeys Modifiers;
+    /// <summary>
+    /// Gets the key modifiers.
+    /// </summary>
+    public ModifierKeys Modifiers { get; set; }
 
-    public ushort ScanCode;
+    /// <summary>
+    /// Gets the platform dependent scan code.
+    /// </summary>
+    public ushort ScanCode { get; set; }
 
-    public bool IsExtended;
+    /// <summary>
+    /// Gets a boolean indicating if this key is extended.
+    /// </summary>
+    public bool IsExtended { get; set; }
 
+    /// <summary>
+    /// Gets a boolean indicating if this key is a system key.
+    /// </summary>
     public bool IsSystem;
 
+    /// <summary>
+    /// Gets the repeat count for this key.
+    /// </summary>
     public int Repeat;
 
-    public bool Handled;
+    /// <summary>
+    /// Gets or sets a boolean indicating if this key event was handled.
+    /// </summary>
+    public bool Handled { get; set; }
 
+    /// <summary>
+    /// Gets a boolean indicating if the key is pressed down.
+    /// </summary>
     public bool IsDown => (State & KeyStates.Down) != 0;
 
+    /// <summary>
+    /// Gets a boolean indicating if the key is pressed up.
+    /// </summary>
     public bool IsUp => (State & KeyStates.Down) == 0;
 
+    /// <summary>
+    /// Gets a boolean indicating if the key is toggled.
+    /// </summary>
     public bool IsToggled => (State & KeyStates.Toggled) != 0;
 
     // TODO: ToText for Enums

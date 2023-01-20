@@ -4,7 +4,6 @@
 
 using System;
 using System.Drawing;
-using TerraFX.Interop.Windows;
 
 namespace NWindows;
 
@@ -158,7 +157,7 @@ public sealed record WindowCreateOptions
     /// </summary>
     public void Verify()
     {
-        if ((Kind == WindowKind.Popup || Kind == WindowKind.Child) && Parent is null)
+        if ((Kind == WindowKind.Popup || Kind == WindowKind.Win32Child) && Parent is null)
         {
             throw new InvalidOperationException("Invalid options. A non TopLevel window must have a Parent window.");
         }

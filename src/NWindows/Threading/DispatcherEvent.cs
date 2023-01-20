@@ -6,6 +6,9 @@ using System.Text;
 
 namespace NWindows.Threading;
 
+/// <summary>
+/// A dispatcher event.
+/// </summary>
 public record DispatcherEvent
 {
     internal DispatcherEvent(DispatcherEventKind kind)
@@ -13,8 +16,16 @@ public record DispatcherEvent
         Kind = kind;
     }
 
+    /// <summary>
+    /// Gets the kind of dispatcher event.
+    /// </summary>
     public DispatcherEventKind Kind { get; }
 
+    /// <summary>
+    /// Print members of this dispatcher event.
+    /// </summary>
+    /// <param name="builder"></param>
+    /// <returns></returns>
     protected virtual bool PrintMembers(StringBuilder builder)
     {
         // Use ToText to make it compatible with NativeAOT - Reflection Free mode

@@ -4,9 +4,18 @@
 
 namespace NWindows;
 
+/// <summary>
+/// An enum describing the theme of the windows.
+/// </summary>
 public enum WindowTheme
 {
+    /// <summary>
+    /// A light theme.
+    /// </summary>
     Light,
 
+    /// <summary>
+    /// A dark theme.
+    /// </summary>
     Dark,
 }

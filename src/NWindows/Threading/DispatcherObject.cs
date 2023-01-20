@@ -6,17 +6,29 @@ using System.Runtime.CompilerServices;
 
 namespace NWindows.Threading;
 
+/// <summary>
+/// An abstract class of an object that must be associated with a <see cref="Dispatcher"/>.
+/// </summary>
 public abstract class DispatcherObject
 {
+    /// <summary>
+    /// Creates a new instance of this object with the current dispatcher.
+    /// </summary>
     protected DispatcherObject() : this(Dispatcher.Current)
     {
     }
 
+    /// <summary>
+    /// Creates a new instance of this object with the specified dispatcher.
+    /// </summary>
     protected DispatcherObject(Dispatcher dispatcher)
     {
         Dispatcher = dispatcher;
     }
 
+    /// <summary>
+    /// The <see cref="Dispatcher"/> associated with this instance.
+    /// </summary>
     public Dispatcher Dispatcher { get; }
 
     /// <summary>

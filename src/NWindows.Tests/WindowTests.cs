@@ -69,8 +69,8 @@ public class WindowTests
                 //window.ClientSize = new SizeF(400, 320);
                 //window.ClientSize = new SizeF(400, 320);
                 writer.WriteLine("--- Change Decoration");
-                window.HasDecorations = false;
-                window.HasDecorations = false;
+                window.Decorations = false;
+                window.Decorations = false;
                 writer.WriteLine("--- Change Maximizeable");
                 window.Maximizeable = false;
                 window.Maximizeable = false;

@@ -1,9 +1,15 @@
+// Copyright (c) Alexandre Mutel. All rights reserved.
+// Licensed under the BSD-Clause 2 license.
+// See license.txt file in the project root for full license information.
 
 using System.Diagnostics;
 using System.Threading;
 
 namespace NWindows.Threading;
 
+/// <summary>
+/// A synchronization context associated with a dispatcher.
+/// </summary>
 [DebuggerDisplay("DispatcherSynchronizationContext {Dispatcher}")]
 public class DispatcherSynchronizationContext : SynchronizationContext
 {
@@ -46,7 +52,7 @@ public class DispatcherSynchronizationContext : SynchronizationContext
     }
 
     /// <summary>
-    ///     Create a copy of this SynchronizationContext.
+    /// Create a copy of this SynchronizationContext.
     /// </summary>
     public override SynchronizationContext CreateCopy()
     {

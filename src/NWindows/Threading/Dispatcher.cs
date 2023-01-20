@@ -141,10 +141,19 @@ public abstract partial class Dispatcher
     /// </summary>
     public Thread Thread { get; }
 
+    /// <summary>
+    /// Gets a boolean indicating if the shutdown has started.
+    /// </summary>
     public bool HasShutdownStarted => _hasShutdownStarted;
 
+    /// <summary>
+    /// Gets a boolean indicating if the shutdown has finished.
+    /// </summary>
     public bool HasShutdownFinished => _hasShutdownFinished;
 
+    /// <summary>
+    /// Gets or sets a boolean indicating whether the dispatcher can output debug information via <see cref="DebugOutput"/>.
+    /// </summary>
     public bool EnableDebug
     {
         get
@@ -159,6 +168,9 @@ public abstract partial class Dispatcher
         }
     }
 
+    /// <summary>
+    /// Gets or sets the debug output when <see cref="EnableDebug"/> is <c>true</c>.
+    /// </summary>
     public Action<string?>? DebugOutput
     {
         get
@@ -195,6 +207,12 @@ public abstract partial class Dispatcher
         }
     }
 
+    /// <summary>
+    /// Shutdown this dispatcher.
+    /// </summary>
+    /// <remarks>
+    /// Once a dispatcher has been shutdown, it cannot be used anymore.
+    /// </remarks>
     public void Shutdown()
     {
         VerifyAccess();
@@ -205,6 +223,10 @@ public abstract partial class Dispatcher
         _hasShutdownStarted = true;
     }
 
+    /// <summary>
+    /// Run the dispatching loop for all Window events associated to this thread.
+    /// </summary>
+    /// <exception cref="InvalidOperationException">If there is already a loop running.</exception>
     public void Run()
     {
         VerifyAccess();
@@ -226,6 +248,10 @@ public abstract partial class Dispatcher
         }
     }
 
+    /// <summary>
+    /// Push the specified loop frame to this dispatcher. The dispatcher must be running via <see cref="Dispatcher.Run"/>.
+    /// </summary>
+    /// <param name="frame"></param>
     public void PushFrame(DispatcherFrame frame)
     {
         VerifyAccess();

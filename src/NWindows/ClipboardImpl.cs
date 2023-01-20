@@ -6,6 +6,9 @@ using System.Collections.Generic;
 
 namespace NWindows;
 
+/// <summary>
+/// Internal Clipboard abstract class that requires a platform dependent implementation.
+/// </summary>
 internal abstract class ClipboardImpl
 {
     public abstract void Clear();

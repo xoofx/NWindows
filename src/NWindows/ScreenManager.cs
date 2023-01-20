@@ -7,6 +7,9 @@ using System.Drawing;
 
 namespace NWindows;
 
+/// <summary>
+/// Internal Screen abstract class that requires a platform dependent implementation.
+/// </summary>
 internal abstract class ScreenManager
 {
     public abstract Point GetVirtualScreenPosition();

@@ -4,7 +4,13 @@
 
 namespace NWindows.Events;
 
+/// <summary>
+/// A system event.
+/// </summary>
 public record SystemEvent() : WindowEvent(WindowEventKind.System)
 {
-    public SystemEventKind SubKind;
+    /// <summary>
+    /// Gets the kind of change.
+    /// </summary>
+    public SystemChangeKind ChangeKind { get; set; }
 }

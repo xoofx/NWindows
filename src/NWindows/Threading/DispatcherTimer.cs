@@ -5,20 +5,32 @@ using System;
 
 namespace NWindows.Threading;
 
+/// <summary>
+/// A timer class that allows to received timer events from a <see cref="Dispatcher"/>.
+/// </summary>
 public class DispatcherTimer
 {
     private readonly object _timerLock;
     private TimeSpan _interval;
     private bool _isEnabled;
 
+    /// <summary>
+    /// Creates a new instance of this timer.
+    /// </summary>
     public DispatcherTimer() : this(Dispatcher.Current)
     {
     }
 
+    /// <summary>
+    /// Creates a new instance of this timer with the specified dispatcher.
+    /// </summary>
     public DispatcherTimer(Dispatcher dispatcher) : this(TimeSpan.Zero, dispatcher)
     {
     }
 
+    /// <summary>
+    /// Creates a new instance of this timer with the specified internal, dispatcher and callback.
+    /// </summary>
     public DispatcherTimer(TimeSpan interval, Dispatcher dispatcher, EventHandler? callback = null) :
         this(dispatcher, callback, interval)
     {
@@ -41,8 +53,14 @@ public class DispatcherTimer
         }
     }
 
+    /// <summary>
+    /// The associated dispatcher.
+    /// </summary>
     public Dispatcher Dispatcher { get; private set; }
 
+    /// <summary>
+    /// Gets or sets a boolean to enable or disable this timer.
+    /// </summary>
     public bool IsEnabled
     {
         get => _isEnabled;
@@ -63,10 +81,20 @@ public class DispatcherTimer
         }
     }
 
+    /// <summary>
+    /// An event handler called when the timer is ticking.
+    /// </summary>
+
     public event EventHandler? Tick;
 
+    /// <summary>
+    /// Gets or sets an object associated with this timer.
+    /// </summary>
     public object? Tag { get; set; }
 
+    /// <summary>
+    /// Gets or sets the internal of this timer.
+    /// </summary>
     public TimeSpan Interval
     {
         get => _interval;
@@ -85,6 +113,9 @@ public class DispatcherTimer
         }
     }
 
+    /// <summary>
+    /// Resets this timer.
+    /// </summary>
     public void Reset()
     {
         lock (_timerLock)
@@ -96,6 +127,9 @@ public class DispatcherTimer
         }
     }
 
+    /// <summary>
+    /// Starts this timer.
+    /// </summary>
     public void Start()
     {
         lock (_timerLock)
@@ -108,6 +142,9 @@ public class DispatcherTimer
         }
     }
 
+    /// <summary>
+    /// Stops this timer.
+    /// </summary>
     public void Stop()
     {
         lock (_timerLock)

@@ -4,6 +4,9 @@
 
 namespace NWindows.Input;
 
+/// <summary>
+/// The state of the mouse button.
+/// </summary>
 public enum MouseButtonState
 {
     /// <summary>

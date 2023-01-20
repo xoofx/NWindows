@@ -3,8 +3,16 @@
 // See license.txt file in the project root for full license information.
 namespace NWindows.Threading;
 
+/// <summary>
+/// Extension method for dispatcher event.
+/// </summary>
 public static class DispatcherEventExtension
 {
+    /// <summary>
+    /// Converts an enum to a string.
+    /// </summary>
+    /// <param name="kind">The enum to convert.</param>
+    /// <returns>The string representation.</returns>
     public static string ToText(this DispatcherEventKind kind)
     {
         return kind switch

@@ -6,9 +6,18 @@ using System.Drawing;
 
 namespace NWindows.Events;
 
+/// <summary>
+/// A paint event. This event must be handled for custom rendering.
+/// </summary>
 public record PaintEvent() : WindowEvent(WindowEventKind.Paint)
 {
+    /// <summary>
+    /// Gets the boundaries of the window to paint.
+    /// </summary>
     public RectangleF Bounds;
 
-    public bool Handled;
+    /// <summary>
+    /// Gets or sets a boolean indicating that this event has been handled by the paint handler.
+    /// </summary>
+    public bool Handled { get; set; }
 }

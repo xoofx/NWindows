@@ -743,7 +743,7 @@ internal sealed unsafe class Win32Clipboard : ClipboardImpl
             _serializer = serializer;
         }
 
-        public override int CalculateSize(object value) => _serializer.CalculateSize((T)value);
+        public override int CalculateSize(object value) => _serializer.CalculateSizeInBytes((T)value);
 
         public override void Serialize(object value, Span<byte> buffer) => _serializer.Serialize((T)value, buffer);
 

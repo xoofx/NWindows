@@ -4,9 +4,23 @@
 
 namespace NWindows;
 
+/// <summary>
+/// The kind of a window.
+/// </summary>
 public enum WindowKind
 {
+    /// <summary>
+    /// A top-level window.
+    /// </summary>
     TopLevel,
+
+    /// <summary>
+    /// A popup window.
+    /// </summary>
     Popup,
-    Child
+
+    /// <summary>
+    /// A Win32 child window. This is only valid for the Windows platform.
+    /// </summary>
+    Win32Child
 }

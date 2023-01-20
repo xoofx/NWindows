@@ -24,7 +24,7 @@ var mainWindow = Window.Create(new()
 mainWindow.Events.Frame += (window, evt) =>
 {
     // Update the background color if the theme changed
-    if (evt.FrameKind == FrameEventKind.ThemeChanged)
+    if (evt.ChangeKind == FrameChangeKind.ThemeChanged)
     {
         window.BackgroundColor = GetCurrentThemeColor();
     }
@@ -88,8 +88,8 @@ static void PopupEventHandler(Window window, WindowEvent evt)
         var handled = false;
         if (keyboardEvent.Key == Key.D)
         {
-            window.HasDecorations = !window.HasDecorations;
-            Console.WriteLine($"Popup Window \"{window.Title}\" HasDecorations: {window.HasDecorations}");
+            window.Decorations = !window.Decorations;
+            Console.WriteLine($"Popup Window \"{window.Title}\" HasDecorations: {window.Decorations}");
             handled = true;
         }
         else if (keyboardEvent.Key == Key.R)
