@@ -76,4 +76,4 @@ NWindows is using the following libraries:
 
 ## Author
 
-Alexandre Mutel aka [xoofx](https://xoofx.com).
+Alexandre Mutel aka [xoofx](https://xoofx.github.io).
